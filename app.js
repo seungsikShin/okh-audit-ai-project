@@ -821,3 +821,9 @@ function init() {
   getPersonList().forEach(p=>{ const o=document.createElement('option'); o.value=p; o.textContent=p; sel.appendChild(o); });
   populateTargetFilter(data);
   bindFloatingHeaderScroll();
+  syncFloatingHeaderMode();
+  renderTable(data);
+  renderDashboard();
+  loadWeeklyHistory();
+}
+document.addEventListener('DOMContentLoaded', init);

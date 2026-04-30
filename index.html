@@ -1,0 +1,1342 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OKH 감사부 AI 활용계획 통합 대시보드</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script type="module">
+// ══════════════════════════════════════════════════
+//  Firebase 설정 — 배포 전 아래 값을 실제 프로젝트 값으로 교체
+// ══════════════════════════════════════════════════
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import { getDatabase, ref, onValue, update, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js";
+
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyCfv2UDysdlLw9yhdWBLHeKRhm0tjxU260",
+  authDomain:        "ai-audit-project-c66bb.firebaseapp.com",
+  databaseURL:       "https://ai-audit-project-c66bb-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "ai-audit-project-c66bb",
+  storageBucket:     "ai-audit-project-c66bb.firebasestorage.app",
+  messagingSenderId: "763599271245",
+  appId:             "1:763599271245:web:73aeef5cdb6e07b5ca3304"
+};
+
+const DB_PATH = "okh_audit/tasks";   // Realtime Database 경로
+
+// ── 초기화
+const app = initializeApp(FIREBASE_CONFIG);
+window._fbApp = app;
+const db  = getDatabase(app);
+
+function setSaveStatus(state, msg) {
+  const dot = document.getElementById('saveDot');
+  const txt = document.getElementById('saveStatus');
+  if (!dot || !txt) return;
+  dot.className = 'save-dot ' + state;
+  txt.textContent = msg;
+}
+
+// ── 전체 데이터 실시간 수신 (다른 사용자 수정 반영)
+window._firebaseListen = function listenDB() {
+  setSaveStatus('saving', '연결 중…');
+  onValue(ref(db, DB_PATH), (snapshot) => {
+    const remote = snapshot.val();
+    if (!remote) { setSaveStatus('saved', '데이터 없음 — 최초 업로드 필요'); return; }
+    // remote는 {1: {...}, 2: {...}, ...} 형태 (no를 key로)
+    if (typeof window._applyRemoteData === 'function') {
+      window._applyRemoteData(remote);
+    }
+    setSaveStatus('saved', '실시간 연결됨');
+  }, (err) => {
+    setSaveStatus('error', '연결 오류: ' + err.message);
+  });
+}
+
+// ── 단일 항목 자동저장 (saveEdit 호출 시 트리거)
+window._firebaseAutoSave = function autoSave(no, rowData) {
+  setSaveStatus('saving', '저장 중…');
+  const updates = {};
+  updates[DB_PATH + '/' + no] = { ...rowData, _updatedAt: serverTimestamp() };
+  update(ref(db), updates)
+    .then(() => {
+      setSaveStatus('saved', '저장됨 ' + new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}));
+      document.getElementById('lastSave').textContent = new Date().toLocaleString('ko-KR');
+    })
+    .catch(err => setSaveStatus('error', '저장 실패: ' + err.message));
+}
+
+// ── 전체 초기 업로드 (최초 1회, 콘솔에서 window._uploadAll() 호출)
+window._uploadAll = function() {
+  if (!window._dashData) { console.warn('데이터 없음'); return; }
+  const batch = {};
+  window._dashData.forEach(r => { batch[DB_PATH + '/' + r.no] = r; });
+  update(ref(db), batch).then(() => console.log('전체 업로드 완료')).catch(console.error);
+};
+
+// ── 전역 노출
+// (autoSave, listenDB 이미 window에 직접 할당됨)
+
+// DOM 준비 후 리스닝 시작
+window.addEventListener('load', () => setTimeout(window._firebaseListen, 800));
+</script>
+
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+:root{
+  --bg:#F6F7FB;--surface:#FFFFFF;--surface-2:#F9FAFB;--surface-hover:#F3F4F6;
+  --border:#EAECF0;--border-strong:#D0D5DD;
+  --text:#101828;--text-2:#475467;--text-3:#98A2B3;
+  --primary:#6366F1;--primary-hover:#4F46E5;--primary-soft:#EEF2FF;--primary-ring:rgba(99,102,241,.18);
+  --accent:#10B981;--accent-soft:#D1FAE5;
+  --warn:#F59E0B;--warn-soft:#FEF3C7;
+  --danger:#EF4444;--danger-soft:#FEE4E2;
+  --info:#0EA5E9;
+  --shadow-sm:0 1px 2px rgba(16,24,40,.05);
+  --shadow:0 1px 3px rgba(16,24,40,.06),0 1px 2px rgba(16,24,40,.04);
+  --shadow-lg:0 12px 32px rgba(16,24,40,.10),0 4px 8px rgba(16,24,40,.04);
+  --radius-sm:8px;--radius:12px;--radius-lg:16px;--radius-pill:999px;
+  --sidebar-w:248px;--topbar-h:64px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:16px;height:100%;}
+body{
+  height:100%;
+  font-family:'Pretendard','Noto Sans KR',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','맑은 고딕',sans-serif;
+  background:var(--bg);
+  font-size:16px;line-height:1.6;font-weight:400;letter-spacing:-0.01em;
+  color:#222;
+  word-break:keep-all;overflow-wrap:break-word;
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+}
+h1,h2,h3,h4{font-weight:700;line-height:1.3;letter-spacing:-0.02em;color:var(--text);}
+p{margin-bottom:1em;}
+::selection{background:var(--primary-soft);color:var(--primary-hover);}
+
+/* 레이아웃 */
+.app{display:flex;min-height:100vh;}
+.sidebar{width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);position:fixed;top:0;left:0;bottom:0;display:flex;flex-direction:column;z-index:100;}
+.sidebar .brand{padding:20px 22px 16px;display:flex;align-items:center;gap:10px;}
+.sidebar .brand-logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#6366F1 0%,#8B5CF6 100%);display:grid;place-items:center;color:#fff;font-weight:800;font-size:14px;box-shadow:0 4px 12px rgba(99,102,241,.35);letter-spacing:-.5px;}
+.sidebar .brand-text{display:flex;flex-direction:column;line-height:1.15;}
+.sidebar .brand-text .name{font-size:14px;font-weight:700;color:var(--text);}
+.sidebar .brand-text .org{font-size:11px;color:var(--text-3);}
+.sidebar .nav-section{padding:8px 12px;}
+.sidebar .nav-label{font-size:10px;font-weight:600;color:var(--text-3);letter-spacing:.08em;text-transform:uppercase;padding:8px 12px 6px;}
+.sidebar .nav{display:flex;flex-direction:column;gap:2px;}
+.tab{display:flex;align-items:center;gap:11px;padding:9px 12px;font-size:13px;color:var(--text-2);font-weight:500;border-radius:10px;cursor:pointer;transition:background .15s,color .15s;white-space:nowrap;}
+.tab:hover{background:var(--surface-hover);color:var(--text);}
+.tab.active{background:var(--primary-soft);color:var(--primary-hover);font-weight:600;}
+.tab .ico{width:20px;height:20px;display:grid;place-items:center;font-size:14px;flex-shrink:0;}
+.tab.active .ico{filter:none;}
+.sidebar .foot{margin-top:auto;padding:14px 16px;border-top:1px solid var(--border);}
+.user-card{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:var(--surface-2);}
+.user-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#10B981,#0EA5E9);color:#fff;display:grid;place-items:center;font-weight:700;font-size:12px;}
+.user-info{display:flex;flex-direction:column;line-height:1.2;}
+.user-info .nm{font-size:12px;font-weight:600;color:var(--text);}
+.user-info .role{font-size:10px;color:var(--text-3);}
+
+.main{margin-left:var(--sidebar-w);flex:1;min-width:0;}
+.topbar{position:sticky;top:0;height:var(--topbar-h);background:rgba(255,255,255,.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 28px;z-index:90;}
+.topbar .page-title{display:flex;flex-direction:column;line-height:1.2;}
+.topbar .page-title h1{font-size:17px;font-weight:700;color:var(--text);letter-spacing:-.01em;}
+.topbar .page-title .sub{font-size:12px;color:var(--text-3);margin-top:3px;}
+.topbar-right{display:flex;align-items:center;gap:14px;}
+.tb-search{display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-pill);padding:7px 14px;width:240px;transition:border-color .15s,box-shadow .15s;}
+.tb-search input{border:none;background:none;outline:none;font-size:12px;font-family:inherit;flex:1;color:var(--text);}
+.tb-search input::placeholder{color:var(--text-3);}
+.tb-search:focus-within{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring);}
+.tb-icon-btn{width:36px;height:36px;border-radius:50%;background:var(--surface-2);border:1px solid var(--border);display:grid;place-items:center;cursor:pointer;font-size:14px;color:var(--text-2);transition:background .15s;}
+.tb-icon-btn:hover{background:var(--surface-hover);}
+
+.page{padding:24px 28px 32px;}
+.tab-content{display:none;}
+.tab-content.active{display:block;animation:fade .25s ease;}
+@keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+/* 버튼 */
+.btn{padding:8px 14px;border:none;border-radius:10px;font-size:12px;font-family:inherit;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:6px;transition:transform .12s,box-shadow .15s,background .15s,border-color .15s;letter-spacing:-.005em;}
+.btn:active{transform:translateY(1px);}
+.btn-primary{background:var(--primary);color:#fff;box-shadow:0 1px 2px rgba(99,102,241,.25);}
+.btn-primary:hover{background:var(--primary-hover);box-shadow:0 4px 10px rgba(99,102,241,.32);}
+.btn-orange{background:var(--accent);color:#fff;box-shadow:0 1px 2px rgba(16,185,129,.25);}
+.btn-orange:hover{background:#0F9F73;box-shadow:0 4px 10px rgba(16,185,129,.32);}
+.btn-outline{background:var(--surface);color:var(--text);border:1px solid var(--border-strong);}
+.btn-outline:hover{background:var(--surface-2);border-color:var(--text-3);}
+.btn-secondary{background:var(--text);color:#fff;}
+
+/* KPI */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:18px;}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:22px 20px;box-shadow:var(--shadow-sm);text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:transform .2s,box-shadow .2s,border-color .2s;}
+.kpi-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg);border-color:var(--border-strong);}
+.kpi-card .val{font-size:34px;font-weight:700;color:var(--text);letter-spacing:-.02em;line-height:1.1;}
+.kpi-card .lbl{font-size:14px;color:var(--text-2);font-weight:500;line-height:1.4;}
+.kpi-card .sub-val{font-size:13px;color:var(--accent);font-weight:700;line-height:1.2;letter-spacing:-.01em;}
+
+/* 차트 그리드 */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;box-shadow:var(--shadow-sm);}
+.chart-card.full{grid-column:1/-1;}
+.chart-card h3{font-size:14px;font-weight:700;margin-bottom:14px;color:var(--text);letter-spacing:-.01em;}
+.chart-wrap{position:relative;}
+
+/* 툴바 */
+.toolbar{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;box-shadow:var(--shadow-sm);}
+.toolbar label{font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.04em;}
+.toolbar select,.toolbar input[type=text]{border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:6px 10px;font-size:12px;font-family:inherit;color:var(--text);transition:border-color .15s,box-shadow .15s;}
+.toolbar select:focus,.toolbar input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring);}
+
+/* 통계 칩 */
+.stats-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.stat-chip{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-pill);padding:6px 14px;font-size:12px;color:var(--text-2);font-weight:500;}
+.stat-chip span{font-weight:700;color:var(--primary);margin-left:2px;}
+
+/* 변경 뱃지 */
+.change-badge{background:var(--warn-soft);color:#92400E;border:1px solid #FDE68A;border-radius:var(--radius-pill);padding:2px 8px;font-size:10px;font-weight:700;display:none;}
+.change-badge.visible{display:inline-block;}
+
+/* 자동저장 인디케이터 */
+.save-indicator{font-size:12px;color:var(--text-2);display:flex;align-items:center;gap:7px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-pill);padding:6px 12px;}
+.save-dot{width:8px;height:8px;border-radius:50%;background:var(--text-3);display:inline-block;transition:background .3s;box-shadow:0 0 0 3px transparent;}
+.save-dot.saving{background:var(--warn);animation:pulse .8s infinite;box-shadow:0 0 0 3px var(--warn-soft);}
+.save-dot.saved{background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
+.save-dot.error{background:var(--danger);box-shadow:0 0 0 3px var(--danger-soft);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.45;}}
+
+/* 테이블 */
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);overflow:clip;}
+.table-wrap.wide{overflow-x:auto;overflow-y:clip;}
+.table-wrap.wide table{min-width:2400px;}
+.table-wrap.compact .col-extra{display:none;}
+table{width:100%;border-collapse:collapse;background:var(--surface);table-layout:fixed;}
+thead{background:var(--surface-2);}
+thead tr{background:var(--surface-2);color:var(--text-2);}
+thead th{padding:14px 10px;text-align:left;font-size:12px;font-weight:600;white-space:nowrap;background:var(--surface-2);text-transform:uppercase;letter-spacing:.04em;color:var(--text-2);border-bottom:1px solid var(--border);position:sticky;top:var(--topbar-h);z-index:50;box-shadow:0 1px 0 var(--border);}
+.table-wrap.wide thead th{position:static;}
+.col-toggle{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2);}
+.col-toggle .switch{position:relative;width:36px;height:20px;background:var(--border-strong);border-radius:999px;cursor:pointer;transition:background .2s;}
+.col-toggle .switch::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.15);}
+.col-toggle .switch.on{background:var(--primary);}
+.col-toggle .switch.on::after{transform:translateX(16px);}
+.col-no{width:38px;} .col-area{width:110px;} .col-agent{width:140px;}
+.col-modified{width:76px;}
+.col-task{width:160px;} .col-plan{width:180px;} .col-person{width:70px;}
+.col-status{width:62px;} .col-progress{width:90px;} .col-target{width:65px;} .col-action{width:52px;}
+.col-shift{width:44px;} .col-priority{width:44px;} .col-aiuse{width:52px;}
+.col-type{width:60px;} .col-method{width:80px;} .col-constraint{width:70px;} .col-official{width:80px;}
+.col-support{width:70px;} .col-measure{width:60px;} .col-asis{width:80px;}
+.col-tobe{width:80px;} .col-effect{width:110px;} .col-cycle{width:52px;} .col-note{width:70px;}
+table{table-layout:auto;}
+tbody tr{border-bottom:1px solid var(--border);transition:background .15s;}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:var(--surface-2);}
+tbody tr.modified{background:var(--primary-soft) !important;}
+tbody tr.modified td:first-child{box-shadow:inset 3px 0 0 var(--primary);}
+td{padding:10px;vertical-align:top;font-size:12px;color:var(--text);}
+td.cell-no{text-align:center;color:var(--text-3);font-weight:600;}
+.cell-text{white-space:pre-wrap;word-break:break-word;line-height:1.5;}
+.badge-착수{background:var(--accent-soft);color:#065F46;border-radius:var(--radius-pill);padding:3px 10px;font-size:11px;font-weight:600;}
+.badge-미착수{background:var(--danger-soft);color:#991B1B;border-radius:var(--radius-pill);padding:3px 10px;font-size:11px;font-weight:600;}
+.badge-empty{background:var(--surface-hover);color:var(--text-3);border-radius:var(--radius-pill);padding:3px 10px;font-size:11px;}
+.progress-wrap{display:flex;align-items:center;gap:8px;}
+.progress-bar{flex:1;height:6px;background:var(--surface-hover);border-radius:99px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#6366F1,#8B5CF6);transition:width .4s cubic-bezier(.2,.8,.2,1);}
+.progress-pct{font-size:11px;font-weight:700;color:var(--text);min-width:30px;text-align:right;}
+.btn-edit{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:11px;cursor:pointer;color:var(--text-2);font-weight:500;transition:all .15s;}
+.btn-edit:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-soft);}
+
+/* 에이전트 카드 */
+.agent-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;}
+.agent-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;box-shadow:var(--shadow-sm);transition:transform .2s,box-shadow .2s;}
+.agent-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg);border-color:var(--border-strong);}
+.agent-card h4{font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border);letter-spacing:-.01em;}
+.agent-card .ag-stat{display:flex;justify-content:space-between;font-size:12px;color:var(--text-2);margin-bottom:8px;}
+.agent-card .ag-bar-wrap{height:6px;background:var(--surface-hover);border-radius:99px;overflow:hidden;margin-bottom:10px;}
+.agent-card .ag-bar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#6366F1,#8B5CF6);}
+.agent-card .ag-tasks{font-size:11px;color:var(--text-3);}
+
+/* 변경 로그 */
+.log-wrap{}
+.log-empty{text-align:center;color:var(--text-3);padding:60px;font-size:13px;background:var(--surface);border:1px dashed var(--border-strong);border-radius:var(--radius-lg);}
+.log-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:10px;box-shadow:var(--shadow-sm);border-left:3px solid var(--primary);}
+.log-item .log-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.log-item .log-no{font-weight:700;color:var(--primary);font-size:13px;}
+.log-item .log-time{font-size:11px;color:var(--text-3);}
+.log-item .log-row{display:grid;grid-template-columns:100px 1fr 1fr;gap:8px;font-size:11px;margin-bottom:6px;align-items:start;}
+.log-item .log-field{font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;font-size:10px;}
+.log-item .log-before{color:var(--danger);text-decoration:line-through;word-break:break-word;}
+.log-item .log-after{color:#065F46;word-break:break-word;}
+.log-item .log-memo{margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);font-size:11px;color:var(--text-2);font-style:italic;}
+
+/* 모달 */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(16,24,40,.50);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:1000;justify-content:center;align-items:center;animation:fade .2s ease;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border-radius:var(--radius-lg);width:600px;max-width:95vw;max-height:85vh;overflow-y:auto;box-shadow:var(--shadow-lg);border:1px solid var(--border);}
+.modal-header{background:var(--surface);color:var(--text);padding:18px 22px;border-bottom:1px solid var(--border);border-radius:var(--radius-lg) var(--radius-lg) 0 0;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:1;}
+.modal-header h3{font-size:15px;font-weight:700;letter-spacing:-.01em;}
+.modal-close{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text-2);font-size:14px;cursor:pointer;width:30px;height:30px;display:grid;place-items:center;transition:all .15s;}
+.modal-close:hover{background:var(--danger-soft);color:var(--danger);border-color:var(--danger-soft);}
+.modal-body{padding:22px;}
+.form-group{margin-bottom:16px;}
+.form-group label{display:block;font-size:11px;font-weight:600;color:var(--text-2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;}
+.form-group textarea,.form-group input[type=text],.form-group select{width:100%;border:1px solid var(--border);background:var(--surface);border-radius:10px;padding:10px 12px;font-size:13px;font-family:inherit;color:var(--text);transition:border-color .15s,box-shadow .15s;}
+.form-group textarea{resize:vertical;min-height:70px;line-height:1.5;}
+.form-group input[type=text]:focus,.form-group textarea:focus,.form-group select:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring);}
+.form-group .hint{font-size:11px;color:var(--text-3);margin-top:4px;line-height:1.4;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.slider-wrap{display:flex;align-items:center;gap:12px;}
+.slider-wrap input[type=range]{flex:1;accent-color:var(--primary);height:6px;}
+.slider-val{font-size:18px;font-weight:700;color:var(--primary);min-width:48px;text-align:right;letter-spacing:-.02em;}
+.readonly-field{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--text-2);line-height:1.5;white-space:pre-wrap;min-height:40px;}
+.modal-footer{padding:16px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;background:var(--surface-2);border-radius:0 0 var(--radius-lg) var(--radius-lg);position:sticky;bottom:0;}
+pre.json-preview{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:11px;max-height:160px;overflow-y:auto;color:var(--text);white-space:pre-wrap;word-break:break-all;font-family:'SF Mono',Monaco,Menlo,monospace;}
+
+/* 수정일 */
+.cell-modified{font-size:10px;color:var(--accent);font-weight:600;line-height:1.4;}
+.cell-modified-none{font-size:10px;color:var(--text-3);}
+
+/* 토스트 */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--text);color:#fff;padding:12px 20px;border-radius:10px;font-size:12px;font-weight:500;z-index:2000;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;transform:translateY(8px);box-shadow:var(--shadow-lg);}
+.toast.show{opacity:1;transform:none;}
+
+/* 스크롤바 */
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:#D0D5DD;border-radius:99px;border:2px solid var(--bg);}
+::-webkit-scrollbar-thumb:hover{background:#98A2B3;}
+
+/* 반응형 */
+@media (max-width:1280px){
+  .kpi-row{grid-template-columns:repeat(3,1fr);}
+}
+@media (max-width:960px){
+  .sidebar{transform:translateX(-100%);}
+  .main{margin-left:0;}
+  .kpi-row{grid-template-columns:repeat(2,1fr);}
+  .chart-grid{grid-template-columns:1fr;}
+  .tb-search{display:none;}
+}
+body.snapshot-mode .btn-edit{display:none !important;}
+body.snapshot-mode .save-indicator{opacity:.4;}
+body.snapshot-mode #weeklyNav .tab.active{background:#FEF3C7;color:#92400E;}
+#weeklyNav .tab{font-size:12px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo">N</div>
+      <div class="brand-text">
+        <span class="name">Nexus Audit</span>
+        <span class="org">OKH 감사부</span>
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Workspace</div>
+      <div class="nav">
+        <div class="tab active" onclick="switchTab('dashboard',this)"><span class="ico">📊</span><span>대시보드</span></div>
+        <div class="tab" onclick="switchTab('schedule',this)"><span class="ico">📅</span><span>목표완료 일정</span></div>
+        <div class="tab" onclick="switchTab('tasklist',this)"><span class="ico">📋</span><span>과제 목록</span></div>
+        <div class="tab" onclick="switchTab('agents',this)"><span class="ico">🤖</span><span>에이전트별</span></div>
+        <div class="tab" onclick="switchTab('changelog',this)"><span class="ico">📝</span><span>변경 로그</span></div>
+      </div>
+    </div>
+    <div class="nav-section" id="weeklyNavSection">
+      <div class="nav-label">진척 이력</div>
+      <div class="nav" id="weeklyNav" style="max-height:240px;overflow-y:auto;">
+        <div class="tab active" onclick="exitSnapshotMode(this)" id="weeklyNavLive"><span class="ico">🟢</span><span>현재 (Live)</span></div>
+      </div>
+    </div>
+    <div class="foot">
+      <div class="user-card">
+        <div class="user-avatar">감</div>
+        <div class="user-info">
+          <span class="nm">감사부 팀원</span>
+          <span class="role">2026년 4월 5주차</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="page-title">
+        <h1>AI 활용계획 통합 대시보드</h1>
+        <div class="sub">2026년 4월 5주차 · 전체 80개 과제 · 팀원 편집 + 현황 시각화</div>
+      </div>
+      <div class="topbar-right">
+        <div class="tb-search">
+          <span style="color:var(--text-3);font-size:13px;">🔍</span>
+          <input type="text" placeholder="과제·에이전트 검색..." oninput="(function(v){var s=document.getElementById('searchInput');if(s){s.value=v;applyFilter();}})(this.value)">
+        </div>
+        <div class="save-indicator"><span class="save-dot" id="saveDot"></span><span id="saveStatus">Firebase 연결 대기중</span></div>
+        <div class="tb-icon-btn" title="알림">🔔</div>
+      </div>
+    </header>
+
+    <div id="snapshotBanner" style="display:none;background:linear-gradient(90deg,#FEF3C7,#FDE68A);border-bottom:1px solid #F59E0B;padding:10px 24px;display:none;align-items:center;justify-content:space-between;">
+      <div style="font-size:13px;color:#92400E;font-weight:600;">📌 <span id="snapshotBannerLabel"></span> 스냅샷을 보고 있습니다 (읽기 전용)</div>
+      <button onclick="exitSnapshotMode()" style="background:#F59E0B;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;">현재로 돌아가기</button>
+    </div>
+
+    <div class="page">
+
+<!-- ① 대시보드 탭 -->
+<div id="tab-dashboard" class="tab-content active">
+  <div class="kpi-row" style="grid-template-columns:repeat(6,minmax(0,1fr));">
+    <div class="kpi-card"><div class="val" id="kpi-total">80</div><div class="lbl">전체 과제</div></div>
+    <div class="kpi-card"><div class="val" id="kpi-started">0</div><div class="lbl">착수 건</div><div class="sub-val" id="kpi-started-pct"></div></div>
+    <div class="kpi-card"><div class="val" id="kpi-not">0</div><div class="lbl">미착수 건</div></div>
+    <div class="kpi-card"><div class="val" id="kpi-avg">0%</div><div class="lbl">평균 진척률</div></div>
+    <div class="kpi-card"><div class="val" id="kpi-done">0</div><div class="lbl">완료 건</div><div class="sub-val" id="kpi-done-pct"></div><div class="lbl" style="margin-top:8px;border-top:1px solid var(--border);padding-top:6px;">공식완료 <span id="kpi-official" style="color:var(--accent);font-weight:700;">0</span>건</div></div>
+    <div class="kpi-card"><div class="val">19</div><div class="lbl">AI 에이전트 수</div></div>
+  </div>
+  <div class="chart-grid">
+    <div class="chart-card"><h3>착수 현황</h3><div class="chart-wrap" style="height:220px"><canvas id="chartStatus"></canvas></div></div>
+    <div class="chart-card"><h3>SHIFT 유형별 현황</h3><div class="chart-wrap" style="height:220px"><canvas id="chartShift"></canvas></div></div>
+    <div class="chart-card full"><h3>에이전트별 평균 진척률</h3><div class="chart-wrap" id="chartAgentWrap" style="height:280px"><canvas id="chartAgent"></canvas></div></div>
+    <div class="chart-card full"><h3>우선순위 × 착수상태</h3><div class="chart-wrap" style="height:200px"><canvas id="chartPriority"></canvas></div></div>
+    <div class="chart-card full">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h3 style="margin:0;">📋 주차별 진척 이력</h3>
+        <span id="weeklyAutoTag" style="font-size:11px;color:#aaa;"></span>
+      </div>
+      <div id="weeklyTable"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ② 목표완료 일정 탭 -->
+<div id="tab-schedule" class="tab-content">
+  <div class="chart-grid" style="padding-top:16px;">
+    <div class="chart-card full"><h3>분기별 목표완료 과제 수 (착수상태별)</h3><div class="chart-wrap" style="height:300px"><canvas id="chartQuarter"></canvas></div></div>
+    <div class="chart-card full"><h3>목표완료 시기별 과제 목록</h3><div id="quarterList"></div></div>
+  </div>
+</div>
+
+<!-- ③ 과제 목록 탭 -->
+<div id="tab-tasklist" class="tab-content">
+  <div class="toolbar">
+    <label>담당자</label>
+    <select id="filterPerson" onchange="applyFilter()"><option value="">전체</option></select>
+    <label>착수상태</label>
+    <select id="filterStatus" onchange="applyFilter()">
+      <option value="">전체</option><option value="착수">착수</option><option value="미착수">미착수</option>
+    </select>
+    <label>AI활용</label>
+    <select id="filterAiUse" onchange="applyFilter()">
+      <option value="">전체</option><option value="활용">AI활용</option><option value="미활용">AI미활용</option>
+    </select>
+    <label>목표완료</label>
+    <select id="filterTarget" onchange="applyFilter()">
+      <option value="">전체</option>
+    </select>
+    <label>검색</label>
+    <input type="text" id="searchInput" placeholder="태스크·에이전트명 검색" style="width:180px" oninput="applyFilter()">
+    <label>최근수정</label>
+    <select id="filterRecent" onchange="applyFilter()">
+      <option value="">전체</option>
+      <option value="7">최근 1주일</option>
+    </select>
+    <button class="btn btn-outline" onclick="resetFilter()">초기화</button>
+    <button class="btn btn-orange" onclick="downloadExcel()">📥 엑셀 다운로드</button>
+    <div class="col-toggle">
+      <span>전체 컬럼</span>
+      <div id="colSwitch" class="switch" onclick="toggleColumns()" role="switch" aria-checked="false" title="전체 컬럼 보기 (가로 스크롤)"></div>
+    </div>
+    <div style="font-size:11px;color:var(--text-3);">마지막 저장: <span id="lastSave">-</span></div>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-chip">표시 <span id="statVisible">0</span>건</div>
+    <div class="stat-chip">착수 <span id="statStart">0</span>건</div>
+    <div class="stat-chip">미착수 <span id="statNot">0</span>건</div>
+    <div class="stat-chip">평균 진척률 <span id="statAvg">0</span>%</div>
+  </div>
+  <div class="table-wrap compact" id="tableWrap">
+    <table id="mainTable">
+      <thead><tr>
+        <th class="col-no">No</th>
+        <th class="col-area">업무영역/프로세스</th>
+        <th class="col-agent">에이전트명</th>
+        <th class="col-task">세부태스크</th>
+        <th class="col-plan">AI 활용계획</th>
+        <th class="col-person">담당자</th>
+        <th class="col-shift col-extra">SHIFT</th>
+        <th class="col-type col-extra">과제유형</th>
+        <th class="col-priority col-extra">우선순위</th>
+        <th class="col-aiuse col-extra">AI활용</th>
+        <th class="col-method col-extra">구현방법</th>
+        <th class="col-status">착수상태</th>
+        <th class="col-progress">진척률</th>
+        <th class="col-target">목표완료</th>
+        <th class="col-official col-extra">공식완료일</th>
+        <th class="col-constraint col-extra">제약사유</th>
+        <th class="col-support col-extra">필요지원</th>
+        <th class="col-measure col-extra">측정유형</th>
+        <th class="col-asis col-extra">As-Is</th>
+        <th class="col-tobe col-extra">To-Be</th>
+        <th class="col-effect col-extra">기대효과</th>
+        <th class="col-cycle col-extra">측정주기</th>
+        <th class="col-note col-extra">비고</th>
+        <th class="col-modified col-extra">최근수정</th>
+        <th class="col-action">수정</th>
+      </tr></thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ④ 에이전트별 탭 -->
+<div id="tab-agents" class="tab-content">
+  <div class="agent-grid" id="agentGrid"></div>
+</div>
+
+<!-- ⑤ 변경 로그 탭 -->
+<div id="tab-changelog" class="tab-content">
+  <div class="log-wrap" id="logWrap">
+    <div class="log-empty" id="logEmpty">아직 변경된 항목이 없습니다.<br>과제 목록 탭에서 수정하면 여기에 기록됩니다.</div>
+  </div>
+</div>
+
+    </div><!-- /.page -->
+  </div><!-- /.main -->
+</div><!-- /.app -->
+
+<!-- 편집 모달 -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle">항목 수정</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>업무영역</label><input type="text" id="m_area"></div>
+        <div class="form-group"><label>프로세스</label><input type="text" id="m_process"></div>
+      </div>
+      <div class="form-group"><label>에이전트명</label><input type="text" id="m_agent"></div>
+      <div class="form-group"><label>세부태스크</label><textarea id="m_task" rows="3"></textarea></div>
+      <div class="form-group"><label>AI 활용계획</label><textarea id="m_plan" rows="4"></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label>담당자</label><input type="text" id="m_person"></div>
+        <div class="form-group"><label>목표완료</label><input type="text" id="m_target" placeholder="예: 2026 Q3"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>공식완료일</label><input type="text" id="m_official" placeholder="예: 26.07.31"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>SHIFT</label>
+          <select id="m_shift">
+            <option value="">-</option>
+            <option value="S">S (대체)</option>
+            <option value="H">H (강화)</option>
+            <option value="I">I (혁신)</option>
+            <option value="T">T (전환)</option>
+            <option value="SH">SH (대체+강화)</option>
+            <option value="F">F (미래)</option>
+          </select>
+        </div>
+        <div class="form-group"><label>과제유형</label>
+          <select id="m_type">
+            <option value="">-</option>
+            <option value="신규">신규</option>
+            <option value="고도화">고도화</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>우선순위</label>
+          <select id="m_priority">
+            <option value="">-</option>
+            <option value="상">상</option>
+            <option value="중">중</option>
+            <option value="하">하</option>
+          </select>
+        </div>
+        <div class="form-group"><label>AI활용가능</label>
+          <select id="m_aiuse">
+            <option value="">-</option>
+            <option value="O">O (활용)</option>
+            <option value="X">X (미활용)</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>착수상태</label>
+          <select id="m_status">
+            <option value="">-</option>
+            <option value="착수">착수</option>
+            <option value="미착수">미착수</option>
+          </select>
+        </div>
+        <div class="form-group"><label>구현방법</label><input type="text" id="m_method" placeholder="예: 에이전트/API"></div>
+      </div>
+      <div class="form-group"><label>진척률</label>
+        <div class="slider-wrap">
+          <input type="range" id="m_progress" min="0" max="100" step="5" oninput="document.getElementById('m_progress_val').textContent=this.value+'%'">
+          <div class="slider-val" id="m_progress_val">0%</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>As-Is</label><textarea id="m_asis" rows="2"></textarea></div>
+        <div class="form-group"><label>To-Be</label><textarea id="m_tobe" rows="2"></textarea></div>
+      </div>
+      <div class="form-group"><label>기대효과</label><textarea id="m_effect" rows="2"></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label>제약사유</label><textarea id="m_constraint" rows="2"></textarea></div>
+        <div class="form-group"><label>필요지원</label><input type="text" id="m_support"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>측정유형</label><input type="text" id="m_measure"></div>
+        <div class="form-group"><label>측정주기</label><input type="text" id="m_cycle"></div>
+      </div>
+      <div class="form-group"><label>비고</label><textarea id="m_note" rows="2"></textarea></div>
+      <div class="form-group"><label>메모 (이번 변경 사유 · 변경 로그에 기록됨)</label><textarea id="m_memo" rows="2" placeholder="예: 일정 지연 사유, 우선순위 조정 사유 등"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveEdit()">저장</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="toast" id="toast"></div>
+<script>
+const RAW = [{"no": 1, "영역": "Ⅰ. 감사 전략 및 기획", "프로세스": "1.1 리스크 모니터링", "태스크": "[보도자료 모니터링]\n감독기관, 협회 보도자료 및 주요 언론 기사 수집, 분석, 모니터링", "활용계획": "[현재] 법제처·금감원 사이트 수기 방문하여 동향 파악 → [AI 활용] '대외동향 모니터링 에이전트'로 보도자료 자동 수집, AI가 영향도 분류 후 두레이 실시간 알림", "담당자": "이정", "에이전트": "A-01. 대외 동향·규정 모니터링 에이전트", "shift": "S", "과제유형": "신규", "우선순위": "상", "AI활용가능": "O", "구현방법": "에이전트/API", "착수상태": "착수", "목표완료": "2026 Q3", "공식완료일": "24.04.16", "진척률": 0.8, "제약사유": "-", "필요지원": "교육/기술지원", "측정유형": "처리시간", "AsIs": "회당 1시간", "ToBe": "회당 0.5시간 (50% 단축)", "기대효과": "[0.5시간 단축] 금감원 보도자료와 당사 관련 주요 이슈를 AI가 자동 수집하여 분석", "측정주기": "월간", "비고": "웹 크롤링 로그"}, {"no": 2, "영역": "Ⅰ. 감사 전략 및 기획", "프로세스": "1.1 리스크 모니터링", "태스크": "[감독기관 제재 현황 모니터링]\n업권별 금융감독원, 공정위원회 등 제재 동향 분석 및 모니터링", "활용계획": "[현재] 금감원·공정위 제재 현황 수기 모니터링 → [AI 활용] '대외동향 모니터링 에이전트'로 업권별 제재 동향 자동 수집, 부서별 영향도 자동 분류", "담당자": "이정", "에이전트": "A-01. 대외 동향·규정 모니터링 에이전트", "shift": "S", "과제유형": "신규", "우선순위": "상", "AI활용가능": "O", "구현방법": "에이전트/API", "착수상태": "착수", "목표완료": "2026 Q3", "공식완료일": "24.04.16", "진척률": 0.7, "제약사유": "-", "필요지원": "교육/기술지원", "측정유형": "처리시간", "AsIs": "회당 1시간", "ToBe": "회당 0.5시간 (50% 단축)", "기대효과": "[0.5시간 단축] 업권 제재 현황을 AI가 자동 수집하여 분석", "측정주기": "월간", "비고": "웹 크롤링 로그"}, {"no": 3, "영역": "Ⅰ. 감사 전략 및 기획", "프로세스": "1.1 리스크 모니터링", "태스크": "[법령 제개정 모니터링]\n업권별 관계 법령 제개정 모니터링", "활용계획": "[현재] 법령 제개정 사항 수기 확인 → [AI 활용] '대외동향 모니터링 에이전트'로 입법예고 자동 수집, AI가 업권별 영향도 분석 후 실시간 알림", "담당자": "이정", "에이전트": "A-01. 대외 동향·규정 모니터링 에이전트", "shift": "S", "과제유형": "신규", "우선순위": "상", "AI활용가능": "O", "구현방법": "에이전트/API", "착수상태": "착수", "목표완료": "2026 Q3", "공식완료일": "24.04.16", "진척률": 0.7, "제약사유": "-", "필요지원": "교육/기술지원", "측정유형": "처리시간", "AsIs": "회당 1시간", "ToBe": "회당 0.5시간 (50% 단축)", "기대효과": "[0.5시간 단축] 법제처 자료를 AI가 자동 수집하여 분석", "측정주기": "월간", "비고": "웹 크롤링 로그"}, {"no": 4, "영역": "Ⅰ. 감사 전략 및 기획", "프로세스": "1.1 리스크 모니터링", "태스크": "[규제 변경 영향 분석]\n법규 변경 시 부서별 업무 영향도 사전 분석 및 대응 방안 도출", "활용계획": "[현재] 법규 변경 시 부서별 영향도 수기 분석 → [AI 활용] '규제 영향 분석 AI 에이전트'로 법규 변경 사항 자동 파악, 부서별 영향도 분석 및 대응 방안 자동 도출", "담당자": "이정", "에이전트": "A-01. 대외 동향·규정 모니터링 에이전트", "shift": "S", "과제유형": "신규", "우선순위": "중", "AI활용가능": "O", "구현방법": "에이전트/API", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "교육/기술지원", "측정유형": "처리시간", "AsIs": "회당 2시간", "ToBe": "회당 30분 (75% 단축)", "기대효과": "[1.5시간 단축] 법규 변경 시 부서별 영향도 AI 자동 분석", "측정주기": "월간", "비고": "에이전트 분석 리포트\n(영향도 분석, 대응 방안)"}, {"no": 5, "영역": "Ⅰ. 감사 전략 및 기획", "프로세스": "1.1 리스크 모니터링", "태스크": "[사내 증적 상시 분석]\n보고서·품의서 내 고액 결제(3천만 원 이상) 건 등 상시 모니터링", "활용계획": "[현재] 분기별 고액결제(3천만 원 이상) 건 수기 확인 → [AI 활용] '사내 증적 분석 에이전트'로 두레이 API 연동, sLLM이 주요 보고서 자동 수집 및 리스크 알림", "담당자": "신승식, 유승창", "에이전트": "A-09. 부정거래·경비집행 탐지 에이전트", "shift": "T", "과제유형": "신규", "우선순위": "중", "AI활용가능": "△", "구현방법": "sLLM/두레이", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "두레이 권한 확보 및\n전자문서화 선행 필요", "필요지원": "교육/접근권한/기술지원/API", "측정유형": "커버리지", "AsIs": "AI 활용율 20%", "ToBe": "AI 활용율 70% (50%p 확대)", "기대효과": "[AI 커버리지 50%p 확대] 두레이 연동으로 사내 증적 문서 AI 자동분석 및 리스크 모니터링 체계 구축", "측정주기": "월간", "비고": "에이전트 분석 리포트\n(사내 증적 문서 AI 분석 로그)"}, {"no": 6, "영역": "Ⅰ. 감사 전략 및 기획", "프로세스": "1.2 감사 전략 수립", "태스크": "[이상거래 식별]\n전사 거래 데이터 기반 비정상 거래 및 이상치 점검 및 식별", "활용계획": "[현재] 전사 거래 데이터 수기 점검하여 이상치 식별 → [AI 활용] '이상거래 탐지 AI 에이전트'로 거래 데이터 실시간 분석, 이상 패턴 자동 탐지 및 알림", "담당자": "신승식", "에이전트": "A-02. 감사 전략 수립 에이전트", "shift": "T", "과제유형": "신규", "우선순위": "중", "AI활용가능": "△", "구현방법": "에이전트/sLLM", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "BSP정보 연동 또는 배치 권한", "필요지원": "데이터/교육/접근권한/기술지원", "측정유형": "커버리지", "AsIs": "AI 활용율 10%", "ToBe": "AI 활용율 60% (50%p 확대)", "기대효과": "[커버리지 50%p 확대] 거래 데이터 기반 이상 패턴 AI 자동 탐지 및 알림", "측정주기": "분기", "비고": "에이전트 분석 리포트\n(이상 패턴 탐지, 알림 로그)"}, {"no": 7, "영역": "Ⅰ. 감사 전략 및 기획", "프로세스": "1.2 감사 전략 수립", "태스크": "[리스크 스코어링]\n정량적·정성적 리스크 점수 산출", "활용계획": "[현재] 정량·정성 리스크 점수 수기 산출 → [AI 활용] '리스크 스코어링 AI 에이전트'로 데이터 기반 리스크 점수 자동 산출 및 시각화", "담당자": "신승식", "에이전트": "A-02. 감사 전략 수립 에이전트", "shift": "I", "과제유형": "신규", "우선순위": "중", "AI활용가능": "O", "구현방법": "에이전트/sLLM", "착수상태": "미착수", "목표완료": "2026 Q4", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "데이터/교육", "측정유형": "품질점수", "AsIs": "수동 평가", "ToBe": "자동 스코어링 80%", "기대효과": "[자동화율 80%] 정량적 리스크 점수 자동 산출로 평가 객관성 제고", "측정주기": "분기", "비고": "에이전트 분석 리포트\n(리스크 스코어링 자료)"}, {"no": 8, "영역": "Ⅰ. 감사 전략 및 기획", "프로세스": "1.2 감사 전략 수립", "태스크": "[리스크 평가 및 대상 선정]\n스코어링 기반 평가 및 과거 지적 사례 기반 피감 대상 우선순위 선정", "활용계획": "[현재] 과거 지적 사례 기반 회의로 감사 대상 선정 → [AI 활용] '감사 전략 수립 에이전트'로 지적 사례·대외동향 학습, 피감 대상 우선순위 자동 산출 및 리스크 현황 시각화", "담당자": "신승식", "에이전트": "A-02. 감사 전략 수립 에이전트", "shift": "H", "과제유형": "신규", "우선순위": "중", "AI활용가능": "O", "구현방법": "에이전트/sLLM", "착수상태": "미착수", "목표완료": "2026 Q4", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "교육", "측정유형": "처리시간", "AsIs": "회당 8시간", "ToBe": "회당 2시간 (75% 단축)", "기대효과": "[6시간 단축] 과거 지적 사례 기반 AI 우선순위 자동 도출로 감사 대상 선정 시간 절감", "측정주기": "분기", "비고": "에이전트 분석 리포트\n(AI 우선순위, 리스크 평가자료)"}, {"no": 9, "영역": "Ⅰ. 감사 전략 및 기획", "프로세스": "1.2 감사 전략 수립", "태스크": "[연간 감사계획 수립]\n세부 감사 대상 선정, 사업계획 수립 및 경영 방침에 따른 감사방향 정립", "활용계획": "[현재] 회의·토론으로 연간 사업계획 수립 → [AI 활용] '감사 전략 수립 에이전트'와 딥 리서치 연계, 업권 동향·벤치마킹 자료 자동 수집 및 사업계획 초안 생성", "담당자": "신승식", "에이전트": "A-02. 감사 전략 수립 에이전트", "shift": "H", "과제유형": "신규", "우선순위": "하", "AI활용가능": "O", "구현방법": "에이전트/sLLM", "착수상태": "미착수", "목표완료": "2026 Q4", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "교육", "측정유형": "처리시간", "AsIs": "회당 18시간", "ToBe": "회당 4시간 (78% 단축)", "기대효과": "[14시간 단축] AI 딥 리서치 활용 외부 환경 분석 및 과거 사례 기반 사업계획 초안 자동 생성", "측정주기": "반기", "비고": "에이전트 분석 리포트\n(사업계획 초안, 벤치마킹)"}, {"no": 10, "영역": "Ⅰ. 감사 전략 및 기획", "프로세스": "1.3 정보 수집 체계", "태스크": "[사내 정보 수집]\n주요 회의·간담회 참석 및 기록물 상시 정보 수집·검증", "활용계획": "[현재] 감사부 참석한 회의에만 정보 수집 → [AI 활용] '사내 정보 수집 에이전트'로 두레이 전사 주요 회의 내용, sLLM이 핵심 이슈 추출하여 정보 자동 수집", "담당자": "강인구", "에이전트": "A-03. 인터뷰·회의 STT 분석 에이전트", "shift": "S", "과제유형": "신규", "우선순위": "중", "AI활용가능": "△", "구현방법": "sLLM/두레이", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "회의록 접근 권한 요청", "필요지원": "교육/접근권한/기술지원", "측정유형": "처리건수", "AsIs": "주 2회", "ToBe": "주 20회 (10배 증가)", "기대효과": "[처리건수 10배 증가] 두레이 권한 확보로 사내 회의록 확보 및 정보 수집량 대폭 확대", "측정주기": "월간", "비고": "두레이 회의록 수집 건수, AI 분석 기록"}, {"no": 11, "영역": "Ⅰ. 감사 전략 및 기획", "프로세스": "1.3 정보 수집 체계", "태스크": "[수집자료 정리 및 분류]\n수집 회의록, 기록물 요약 및 리스크 관련성에 따른 분류", "활용계획": "[현재] 수집 회의록·기록물 수기 요약 및 분류 → [AI 활용] '자료 분류 AI 에이전트'로 회의록 STT 변환 및 요약, 리스크 관련성 자동 분류", "담당자": "강인구", "에이전트": "A-03. 인터뷰·회의 STT 분석 에이전트", "shift": "S", "과제유형": "신규", "우선순위": "중", "AI활용가능": "O", "구현방법": "sLLM/두레이", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "교육/기술지원", "측정유형": "처리시간", "AsIs": "건당 1시간", "ToBe": "건당 10분 (83% 단축)", "기대효과": "[50분 단축] 회의록 AI 자동 요약 및 리스크 관련성 자동 분류", "측정주기": "월간", "비고": "에이전트 분석 리포트\n(회의록 STT/요약, 리스크 분류 자료)"}, {"no": 12, "영역": "Ⅰ. 감사 전략 및 기획", "프로세스": "1.3 정보 수집 체계", "태스크": "[리스크 인터뷰]\n임직원 상시 인터뷰, 교류 활등을 통한 현장 리스크 발굴, 조기 경보", "활용계획": "[현재] 직원 면담으로 암묵적 관행 파악 → [AI 활용] '리스크 인터뷰 분석 AI 에이전트'로 녹취 STT 변환, sLLM이 리스크 포인트 자동 분석 및 공식 기록 교차 검증", "담당자": "강인구", "에이전트": "A-03. 인터뷰·회의 STT 분석 에이전트", "shift": "S", "과제유형": "신규", "우선순위": "중", "AI활용가능": "△", "구현방법": "sLLM/두레이", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "", "진척률": 0.1, "제약사유": "회의록 접근 권한 요청", "필요지원": "교육/기술지원", "측정유형": "처리건수", "AsIs": "주 2회", "ToBe": "주 20회 (10배 증가)", "기대효과": "[처리건수 10배 증가] 두레이 연동으로 인터뷰 정보 교차 검증 및 판단 보강 체계 구축", "측정주기": "월간", "비고": "AI 인터뷰 분석 기록"}, {"no": 13, "영역": "Ⅱ. 감사 준비 및 데이터 검증", "프로세스": "2.1 피감 사전 분석", "태스크": "[피감 부서 사전 분석]\n피감 대상 정보 수집 및 과거 지적 사항 및 개선계획·법규 학습", "활용계획": "[현재] 각종 DB 수기 확인하며 피감부서 정보 학습 → [AI 활용] '감사 사전 준비 에이전트'로 지적 사례·법규·사규 DB 적재, 타사 유사 사례 검색 및 감사 착안점 자동 도출 + 감사징구 자료 AI 분석을 위한 문서 전처리 자동화 시스템(Document Parser)", "담당자": "유승창", "에이전트": "A-04. 감사 실시 통합 에이전트", "shift": "SH", "과제유형": "신규", "우선순위": "중", "AI활용가능": "O", "구현방법": "에이전트/sLLM", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "", "진척률": 0.5, "제약사유": "-", "필요지원": "교육", "측정유형": "처리시간", "AsIs": "회당 18시간", "ToBe": "회당 9시간 (50% 단축)", "기대효과": "[9시간 단축] 부서 사고 이력·법규를 AI가 통합 관리, 분석하여 감사 전 학습 시간 절감", "측정주기": "분기", "비고": "에이전트 분석 리포트\n(AI 부서 지저사항 관리)"}, {"no": 14, "영역": "Ⅱ. 감사 준비 및 데이터 검증", "프로세스": "2.1 피감 사전 분석", "태스크": "[현황 및 절차 파악]\n피감부서 인터뷰 통한 실제 업무 프로세스 파악 및 매뉴얼-실무 간 괴리 등 미흡사항 사전 파악", "활용계획": "[현재] 직원 인터뷰로 업무 프로세스 수기 매핑 → [AI 활용] '업무 프로세스 분석 AI 에이전트'로 인터뷰 내용 구조화, 매뉴얼-실무 간 괴리 자동 탐지", "담당자": "강인구", "에이전트": "A-03. 인터뷰·회의 STT 분석 에이전트", "shift": "SH", "과제유형": "신규", "우선순위": "중", "AI활용가능": "O", "구현방법": "에이전트/sLLM", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "", "진척률": 0.1, "제약사유": "-", "필요지원": "교육", "측정유형": "처리시간", "AsIs": "회당 18시간", "ToBe": "회당 9시간 (50% 단축)", "기대효과": "[9시간 단축] 인터뷰 내용 에이전트 적재로 업무 프로세스 파악 시간 절감", "측정주기": "분기", "비고": "에이전트 분석 리포트\n(매뉴얼-운영 괴리 탐지 기록)"}, {"no": 15, "영역": "Ⅱ. 감사 준비 및 데이터 검증", "프로세스": "2.1 피감 사전 분석", "태스크": "[징구 자료 목록 작성]\n감사 범위 기반 필수 징구 자료 목록 생성", "활용계획": "[현재] 감사 범위 기반 필수 자료 목록 수기 작성 → [AI 활용] '자료 목록 생성 AI 에이전트'로 감사 범위·과거 사례 분석, 필수 징구 자료 목록 자동 생성", "담당자": "유승창", "에이전트": "A-04. 감사 실시 통합 에이전트", "shift": "S", "과제유형": "신규", "우선순위": "하", "AI활용가능": "O", "구현방법": "두레이/sLLM", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "교육", "측정유형": "처리시간", "AsIs": "건당 1시간", "ToBe": "건당 10분 (83% 단축)", "기대효과": "[50분 단축] 감사 범위 기반 징구 자료 목록 AI 자동 생성", "측정주기": "분기", "비고": "에이전트 분석 리포트\n(자료 목록 생성)"}, {"no": 16, "영역": "Ⅱ. 감사 준비 및 데이터 검증", "프로세스": "2.2 자료 징구 및 검증", "태스크": "[감사 실시 통지]\n감사 범위 확정 및 수검 부서 사전 감사 자료 징구", "활용계획": "[현재] 메일·쪽지로 감사 통지문 발송, 자료 수기 관리 → [AI 활용] '감사 통지 자동화 에이전트'로 두레이 API 연동, 통지문 발송·자료 요청·독촉 알림 워크플로우 자동화", "담당자": "이정", "에이전트": "A-06. 사후조치 통합 관리 에이전트", "shift": "S", "과제유형": "신규", "우선순위": "하", "AI활용가능": "O", "구현방법": "두레이/sLLM", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "교육/기술지원", "측정유형": "처리시간", "AsIs": "건당 3시간", "ToBe": "건당 0.5시간 (83% 단축)", "기대효과": "[2.5시간 단축] 두레이 프로젝트 활용 서류 징구·독촉 자동화로 단순 관리 업무 절감", "측정주기": "분기", "비고": "두레이 감사 통지 및 자료 징구 로그"}, {"no": 17, "영역": "Ⅱ. 감사 준비 및 데이터 검증", "프로세스": "2.2 자료 징구 및 검증", "태스크": "[징구 자료 정밀 분석]\n감사 목적 부합성 검토, 기초 분석 및 제출 자료 징구 여부 확인", "활용계획": "[현재] 요청 자료 정합성 검증 없이 활용 → [AI 활용] '자료 검증 에이전트'로 파일 내용 구조 분석, 목적 부합성·데이터 무결성 자동 검증 및 적합 리스트 분류", "담당자": "유승창", "에이전트": "A-04. 감사 실시 통합 에이전트", "shift": "I", "과제유형": "신규", "우선순위": "중", "AI활용가능": "O", "구현방법": "에이전트/sLLM", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "교육", "측정유형": "커버리지", "AsIs": "AI 활용율 0%", "ToBe": "AI 활용율 80% (80%p 향상)", "기대효과": "[AI 커버리지 80%p 향상] sLLM 에이전트 활용 내부 문서 분석으로 데이터 품질 검증 및 누락 방지", "측정주기": "분기", "비고": "에이전트 분석 리포트\n(자료 검증, 필요 항목 추출 로그)"}, {"no": 18, "영역": "Ⅱ. 감사 준비 및 데이터 검증", "프로세스": "2.3 시나리오 및 설계", "태스크": "[시나리오 분석]\n징구 자료 분석 기반 감사 시나리오 도출", "활용계획": "[현재] 요청 자료·과거 사례 기반 시나리오 수기 예측 → [AI 활용] '시나리오 분석 에이전트'로 적발 사례·위반 패턴 DB 기반 부정 시나리오 자동 생성 및 이상 거래 사전 탐지 + 감사징구 자료 AI 분석을 위한 문서 전처리 자동화 시스템(Document Parser)", "담당자": "유승창", "에이전트": "A-04. 감사 실시 통합 에이전트", "shift": "SH", "과제유형": "고도화", "우선순위": "상", "AI활용가능": "O", "구현방법": "에이전트/sLLM", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "", "진척률": 0.5, "제약사유": "-", "필요지원": "교육", "측정유형": "처리시간", "AsIs": "건당 3시간", "ToBe": "건당 0.5시간 (83% 단축)", "기대효과": "[2.5시간 단축] AI 시나리오 자동 시뮬레이션으로 처리시간 절감 및 잠재 부정행위 사전 탐지", "측정주기": "분기", "비고": "에이전트 분석 리포트\n(위험 시나리오 생성 자료)"}, {"no": 19, "영역": "Ⅱ. 감사 준비 및 데이터 검증", "프로세스": "2.3 시나리오 및 설계", "태스크": "[체크리스트 최적화]\n감사 중점 사항 도출 및 부서별 맞춤 체크리스트 생성", "활용계획": "[현재] 법규 참고하여 체크리스트 일부 AI 작성 → [AI 활용] '체크리스트 최적화 AI 에이전트'로 법령·사규·과거 체크리스트 DB 분석, 피감부서 특성 맞춤 최적 체크리스트 자동 선정", "담당자": "유승창", "에이전트": "A-04. 감사 실시 통합 에이전트", "shift": "H", "과제유형": "고도화", "우선순위": "상", "AI활용가능": "O", "구현방법": "에이전트/sLLM", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "", "진척률": 0.1, "제약사유": "-", "필요지원": "교육", "측정유형": "처리시간", "AsIs": "회당 9시간", "ToBe": "회당 2시간 (78% 단축)", "기대효과": "[7시간 단축] 체크리스트 자동 작성 및 부서 특성별 맞춤 항목 추천으로 점검 실효성 제고", "측정주기": "분기", "비고": "에이전트 분석 리포트\n(체크리스트 생성, 맞춤 추천)"}, {"no": 20, "영역": "Ⅱ. 감사 준비 및 데이터 검증", "프로세스": "3.1 자산 실사 및 대사", "태스크": "[장부·실물 실사]\n현금·유가증권 장부-실물 대사 및 자산 실재성·정합성 검증", "활용계획": "AI 미활용 (현금·유가증권 실물 자산 현장 실사는 물리적 대면 확인 필수로 기존 방식 유지)", "담당자": "", "에이전트": "", "shift": "", "과제유형": "", "우선순위": "", "AI활용가능": "X", "구현방법": "", "착수상태": "", "목표완료": "", "공식완료일": "", "진척률": 0, "제약사유": "업무 성격상 직접 공수 투입이\n 필수적인 태스크임", "필요지원": "", "측정유형": "", "AsIs": "", "ToBe": "", "기대효과": "", "측정주기": "", "비고": ""}, {"no": 21, "영역": "Ⅱ. 감사 준비 및 데이터 검증", "프로세스": "3.1 자산 실사 및 대사", "태스크": "[장부·전산 일치성 검증]\n전산 DB-장부 비교를 통한 처리 적정성 판단", "활용계획": "[현재] 장부-전산 DB 엑셀·수작업 대조 → [AI 활용] '장부 대사 에이전트'로 DB -장부 데이터 자동 매핑·전수 비교, 불일치 항목 자동 추출 및 상세 리포트 생성", "담당자": "신승식, 유승창", "에이전트": "A-09. 부정거래·경비집행 탐지 에이전트", "shift": "I", "과제유형": "고도화", "우선순위": "중", "AI활용가능": "△", "구현방법": "에이전트/sLLM", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "BSP정보 연동 또는 배치 권한", "필요지원": "데이터/교육/기술지원", "측정유형": "품질점수", "AsIs": "샘플링 평균 10%", "ToBe": "전수 조사 100%", "기대효과": "[전수 조사 전환] 에이전트 활용 전산DB·장부 전수 분석으로 샘플링 대비 변별력 대폭 향상", "측정주기": "분기", "비고": "에이전트 분석 리포트\n(전수 분석, 불일치 추출)"}, {"no": 22, "영역": "Ⅱ. 감사 준비 및 데이터 검증", "프로세스": "3.2 법규 및 절차 준수", "태스크": "[법규·매뉴얼 준수 검증]\n업무 절차의 법규·매뉴얼 부합 여부 검증 및 규정·실무 간 괴리 도출", "활용계획": "[현재] 규정-피감부서 산출물 수기 대조 → [AI 활용] '규정 준수 검증 에이전트'로 법규·사규·매뉴얼 DB 적재, 규정 준수 여부 자동 판단 및 위반 의심 리스트 생성", "담당자": "유승창", "에이전트": "A-04. 감사 실시 통합 에이전트", "shift": "SH", "과제유형": "신규", "우선순위": "중", "AI활용가능": "O", "구현방법": "에이전트/sLLM", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "데이터/교육/기술지원", "측정유형": "처리시간", "AsIs": "회당 18시간", "ToBe": "회당 9시간 (50% 단축)", "기대효과": "[9시간 단축] 업무 결과물·확인 사실을 에이전트 입력하여 법규/매뉴얼 차이 자동 판단", "측정주기": "분기", "비고": "에이전트 분석 리포트\n(업무 부합 검토 기록)"}, {"no": 23, "영역": "Ⅱ. 감사 준비 및 데이터 검증", "프로세스": "3.2 법규 및 절차 준수", "태스크": "[지적사항 원인 분석]\n업무 규정-실무 간 차이 및 지적사항 발생 원인 분석(개선방안 도출 등)", "활용계획": "[현재] 지적사항 발생 원인 수기 분석 → [AI 활용] '원인 분석 AI 에이전트'로 지적사항 발생 원인 자동 분석 및 개선방안 도출", "담당자": "유승창", "에이전트": "A-04. 감사 실시 통합 에이전트", "shift": "H", "과제유형": "신규", "우선순위": "중", "AI활용가능": "O", "구현방법": "에이전트/sLLM", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "데이터/교육/기술지원", "측정유형": "처리시간", "AsIs": "회당 9시간", "ToBe": "회당 3시간 (66% 단축)", "기대효과": "[6시간 단축] 규정-실무 차이 원인 및 지적사항 발생 패턴, 원인 파악으로 근본적 개선방안 도출", "측정주기": "분기", "비고": "에이전트 분석 리포트\n(원인 분석 기록)"}, {"no": 24, "영역": "Ⅱ. 감사 준비 및 데이터 검증", "프로세스": "3.3 조사 및 소명", "태스크": "[피감대상 인터뷰 및 소명]\n감사 중 발견 사항에 대한 피감대상 녹취 인터뷰, 의심 사항 소명 및 원인 규명", "활용계획": "[현재] 인터뷰 녹취 후 질의서 수기 작성 → [AI 활용] '인터뷰 분석 AI 에이전트'로 녹취 텍스트화, 핵심 포인트 추출하여 질의서 초안 자동 생성 및 모순 답변 탐지", "담당자": "강인구", "에이전트": "A-03. 인터뷰·회의 STT 분석 에이전트", "shift": "H", "과제유형": "신규", "우선순위": "중", "AI활용가능": "O", "구현방법": "에이전트/sLLM", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "", "진척률": 0.1, "제약사유": "-", "필요지원": "데이터/기술지원", "측정유형": "처리시간", "AsIs": "회당 9시간", "ToBe": "회당 4.5시간 (50% 단축)", "기대효과": "[4.5시간 단축] 인터뷰 녹취 AI 분석, 소명 일관성 확인 및 질의서 자동 생성으로 처리시간 절감", "측정주기": "수시", "비고": "에이전트 분석 리포트\n(생성 인터뷰 질문지, 소명서 검토 내역)"}, {"no": 25, "영역": "Ⅳ. 결과 보고 및 확정", "프로세스": "4.1 지적사항 분석", "태스크": "[지적사항 형평성 검증]\n확정 전 지적사항의 과거 유사 사례 대비 양정 형평성 및 동일 위반 유형 비교", "활용계획": "[현재] 과거 유사 사례 대비 양정 형평성 수기 검토 → [AI 활용] '형평성 검증 AI 에이전트'로 과거 사례 DB 검색, 유사 사례 비교 및 형평성 분석 자동화", "담당자": "강인구, 유승창", "에이전트": "A-05. 감사 결과 문서화 에이전트", "shift": "H", "과제유형": "신규", "우선순위": "중", "AI활용가능": "O", "구현방법": "에이전트/sLLM", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "데이터/교육", "측정유형": "의사결정속도", "AsIs": "건당 3시간", "ToBe": "건당 1시간", "기대효과": "[2시간 단축] 과거 유사 사례 수기 검색 대비 지적사항 형평성 AI 비교 자료 초안 작성", "측정주기": "분기", "비고": "에이전트 분석 리포트\n(형평성 분석, 유사 사례 비교)"}, {"no": 26, "영역": "Ⅳ. 결과 보고 및 확정", "프로세스": "4.1 지적사항 분석", "태스크": "[지적 사항 확정]\n결과 이슈 도출 및 원인 분석을 통한 지적사항 최종 확정", "활용계획": "[현재] 지적사항 법적 정합성 수기 검토 → [AI 활용] '지적사항 검증 AI 에이전트'로 법령·과거 사례 학습, 법적 정합성 자동 평가 및 근거 조항 제시", "담당자": "신승식", "에이전트": "A-05. 감사 결과 문서화 에이전트", "shift": "H", "과제유형": "신규", "우선순위": "중", "AI활용가능": "O", "구현방법": "에이전트/sLLM", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "데이터/교육", "측정유형": "처리시간", "AsIs": "건당 1시간", "ToBe": "건당 15분 (75% 단축)", "기대효과": "[45분 단축] sLLM 활용 지적사항-법규 정합성 자동 초벌 검토로 처리시간 절감", "측정주기": "분기", "비고": "에이전트 분석 리포트\n(정합성 검토, 타당성 근거)"}, {"no": 27, "영역": "Ⅳ. 결과 보고 및 확정", "프로세스": "4.1 지적사항 분석", "태스크": "[개선 방안 협의]\n재발 방지 방안 및 부서 간 개선 방향 협의, 타사벤치 마킹 등 최적 방안 제언", "활용계획": "[현재] 토론으로 개선방안 수기 도출 → [AI 활용] '재발방지 권고 에이전트'로 대외 우수사례·사내 개선 이력 학습, 예방 조치 초안 자동 생성", "담당자": "신승식", "에이전트": "A-05. 감사 결과 문서화 에이전트", "shift": "H", "과제유형": "신규", "우선순위": "상", "AI활용가능": "O", "구현방법": "에이전트/sLLM", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "데이터/교육", "측정유형": "의사결정속도", "AsIs": "회당 5일", "ToBe": "회당 1일 (80% 단축)", "기대효과": "[4일 단축] AI 재발방지 초안 자동 제시로 대안 탐색·협의 시간 대폭 절감", "측정주기": "분기", "비고": "에이전트 분석 리포트\n(재발방지 초안, 타사 벤치마킹)"}, {"no": 28, "영역": "Ⅳ. 결과 보고 및 확정", "프로세스": "4.2 감사 리포팅", "태스크": "[감사 결과 보고서]\n지적사항 확정 및 정당론 기반 보고서 전문 작성", "활용계획": "[현재] 감사 보고서 수기 작성, AI는 탈고 수준 활용 → [AI 활용] '감사 보고서 작성 에이전트'로 규정·자료·인터뷰 DB 종합 분석, 표준 양식 초안 자동 작성+경영진 보고용 원페이지 보고서 작성", "담당자": "신승식", "에이전트": "A-05. 감사 결과 문서화 에이전트", "shift": "H", "과제유형": "신규", "우선순위": "상", "AI활용가능": "O", "구현방법": "에이전트/sLLM", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "24.04.16", "진척률": 0.6, "제약사유": "-", "필요지원": "데이터/교육", "측정유형": "의사결정속도", "AsIs": "평균 5일", "ToBe": "평균 2일 (60% 단축)", "기대효과": "[3일 단축] 감사 에이전트 활용 조서 자동 작성 및 정형화된 보고서 포맷 구성", "측정주기": "수시", "비고": "에이전트 분석 리포트\n(조서 자동 생성, AI 보고서 작성)"}, {"no": 29, "영역": "Ⅳ. 결과 보고 및 확정", "프로세스": "4.2 감사 리포팅", "태스크": "[보고서 품질 검증]\n감사 보고서 논리성·완결성·근거 충분성 검토, 누락 항목 및 논리 비약 점검", "활용계획": "[현재] 감사 보고서 논리성·완결성 수기 검토 → [AI 활용] '보고서 검증 AI 에이전트'로 논리 비약·누락 항목 자동 탐지, 근거 충분성 점검", "담당자": "신승식", "에이전트": "A-05. 감사 결과 문서화 에이전트", "shift": "I", "과제유형": "신규", "우선순위": "중", "AI활용가능": "O", "구현방법": "에이전트/sLLM", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "", "진척률": 0.6, "제약사유": "-", "필요지원": "데이터/교육", "측정유형": "품질점수", "AsIs": "수동 검토", "ToBe": "AI 검증 70%", "기대효과": "[품질 향상] 작성된 보고서의 논리성·완결성 AI 자동 검증으로 품질 제고", "측정주기": "수시", "비고": "에이전트 분석 리포트\n(논리 검증, 완결성 체크)"}, {"no": 30, "영역": "Ⅳ. 결과 보고 및 확정", "프로세스": "4.2 감사 리포팅", "태스크": "[감사 결과 통보]\n지적사항 확정본 피감 부서 통지 및 유관 부서 공유", "활용계획": "[현재] 감사 보고서 대면보고로 강평 실시 → [AI 활용] '보고서 배포 에이전트'로 대상별 맞춤 요약본 생성, 두레이 워크플로우로 결재·통보·열람 자동 추적", "담당자": "이정", "에이전트": "A-06. 사후조치 통합 관리 에이전트", "shift": "SH", "과제유형": "신규", "우선순위": "상", "AI활용가능": "O", "구현방법": "두레이/sLLM", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "데이터/교육", "측정유형": "커버리지", "AsIs": "AI 커버 10%", "ToBe": "AI 커버 90% (80%p 확대)", "기대효과": "[AI 커버리지 80%p 확대] 감사 결과 DB 적재 및 피감부서 자동 통지 알람으로 상시 공유 체계 구축", "측정주기": "수시", "비고": "두레이 감사결과 통보 로그"}, {"no": 31, "영역": "Ⅴ. 사후 관리 및 제재", "프로세스": "5.1 조치 이행 점검", "태스크": "[개선 계획 제출 요구]\n피감부서의 조치 계획 징구", "활용계획": "[현재] 피감부서 의견 수기 취합 → [AI 활용] '의견 분석 AI 에이전트'로 피감부서 소명 자료 자동 취합, 수용 여부 판단 근거 자동 제시", "담당자": "이정", "에이전트": "A-06. 사후조치 통합 관리 에이전트", "shift": "SH", "과제유형": "신규", "우선순위": "상", "AI활용가능": "O", "구현방법": "두레이/sLLM", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "", "진척률": 0.1, "제약사유": "-", "필요지원": "데이터/교육", "측정유형": "커버리지", "AsIs": "AI 커버 10%", "ToBe": "AI 커버 90% (80%p 확대)", "기대효과": "[AI 커버리지 80%p 확대] 두레이 연동 개선계획 제출 요구 및 지적사항 정합성 자동 검토", "측정주기": "수시", "비고": "두레이 개선계획 징구 로그"}, {"no": 32, "영역": "Ⅴ. 사후 관리 및 제재", "프로세스": "5.1 조치 이행 점검", "태스크": "[개선 계획 적정성 검토]\n피감부서의 조치 계획 적정성 검토", "활용계획": "[현재] 피감부서 조치 계획 적정성 수기 검토 → [AI 활용] '계획 검토 AI 에이전트'로 제출 계획서 자동 분석, 실현 가능성 및 적정성 평가", "담당자": "이정", "에이전트": "A-06. 사후조치 통합 관리 에이전트", "shift": "SH", "과제유형": "신규", "우선순위": "상", "AI활용가능": "O", "구현방법": "두레이/sLLM", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "", "진척률": 0.1, "제약사유": "-", "필요지원": "데이터/교육", "측정유형": "커버리지", "AsIs": "AI 커버 10%", "ToBe": "AI 커버 90% (80%p 확대)", "기대효과": "[AI 커버리지 80%p 확대] 개선 계획 이행 시 문제 해결 여부 등 조치 계획 적정성 자동 검토", "측정주기": "수시", "비고": "에이전트 분석 리포트\n(제출 계획서 분석 자료)"}, {"no": 33, "영역": "Ⅴ. 사후 관리 및 제재", "프로세스": "5.1 조치 이행 점검", "태스크": "[조치 이행 점검]\n지적사항 정상화 및 개선 기한 내 이행 여부 상시 점검", "활용계획": "[현재] 감사 종료 후 조치계획 수기 접수·관리 → [AI 활용] '사후조치 관리 에이전트'로 이행 현황 자동 추적, 기한 도래 시 담당자 자동 리마인더 발송", "담당자": "이정", "에이전트": "A-06. 사후조치 통합 관리 에이전트", "shift": "SH", "과제유형": "신규", "우선순위": "상", "AI활용가능": "O", "구현방법": "두레이/sLLM", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "", "진척률": 0.1, "제약사유": "-", "필요지원": "데이터/교육", "측정유형": "커버리지", "AsIs": "AI 커버 10%", "ToBe": "AI 커버 90% (80%p 확대)", "기대효과": "[AI 커버리지 80%p 확대] 조치계획 이행일자 도래 전 자동 알람으로 점검 누락 방지", "측정주기": "수시", "비고": "두레이 조치계획 알림 로그"}, {"no": 34, "영역": "Ⅴ. 사후 관리 및 제재", "프로세스": "5.1 조치 이행 점검", "태스크": "[조치 결과 최종 확인]\n개선 완료 증적 검토 및 최종 종결 처리 승인", "활용계획": "[현재] 조치이행 완료 여부 수기 확인 → [AI 활용] '사후조치 관리 에이전트'로 이행보고서-조치계획 정합성 자동 검증, 증적자료 완전성 점검 후 종결 처리", "담당자": "이정", "에이전트": "A-06. 사후조치 통합 관리 에이전트", "shift": "SH", "과제유형": "신규", "우선순위": "상", "AI활용가능": "O", "구현방법": "두레이/sLLM", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "", "진척률": 0.1, "제약사유": "-", "필요지원": "데이터/교육", "측정유형": "커버리지", "AsIs": "AI 커버 10%", "ToBe": "AI 커버 90% (80%p 확대)", "기대효과": "[AI 커버리지 80%p 확대] 조치이행보고서-개선계획 정합성 AI 초벌 검증 및 종결 관리", "측정주기": "수시", "비고": "에이전트 분석 리포트\n(문제 종결 AI 판단 자료)"}, {"no": 35, "영역": "Ⅴ. 사후 관리 및 제재", "프로세스": "5.2 미조치 관리", "태스크": "[장기 미조치 관리]\n개선 지연 건 독촉 및 조치 기간 스케줄 관리", "활용계획": "[현재] 미이행 건 수기 파악하여 독촉 → [AI 활용] '사후조치 관리 에이전트'로 미이행 건 자동 추출, 두레이 알림으로 독촉 메시지 자동 발송", "담당자": "이정", "에이전트": "A-06. 사후조치 통합 관리 에이전트", "shift": "SH", "과제유형": "신규", "우선순위": "상", "AI활용가능": "O", "구현방법": "두레이/sLLM", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "데이터/교육", "측정유형": "커버리지", "AsIs": "AI 커버 10%", "ToBe": "AI 커버 90% (80%p 확대)", "기대효과": "[AI 커버리지 80%p 확대] 개선사항 DB 축적 및 기일관리 자동화로 장기 미조치 방지", "측정주기": "수시", "비고": "에이전트 분석 리포트\n(조치계획 AI DB 축적 자료)"}, {"no": 36, "영역": "Ⅴ. 사후 관리 및 제재", "프로세스": "5.2 미조치 관리", "태스크": "[이행 지연 사유 분석]\n조치 지연 건 사유 분석 및 해결책 검토·제안", "활용계획": "[현재] 조치 지연 건 사유 수기 분석 → [AI 활용] '지연 분석 AI 에이전트'로 지연 사유 적정성 자동 분석 및 해결책 제안", "담당자": "이정", "에이전트": "A-06. 사후조치 통합 관리 에이전트", "shift": "SH", "과제유형": "신규", "우선순위": "중", "AI활용가능": "O", "구현방법": "두레이/sLLM", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "", "진척률": 0.1, "제약사유": "-", "필요지원": "데이터/교육", "측정유형": "처리시간", "AsIs": "건당 1시간", "ToBe": "건당 15분 (75% 단축)", "기대효과": "[45분 단축] 조치 지연 사유 AI 자동 분석 및 해결책 제안", "측정주기": "수시", "비고": "에이전트 분석 리포트\n(지연 사유 분석, 해결책 제안)"}, {"no": 37, "영역": "Ⅴ. 사후 관리 및 제재", "프로세스": "5.3 징계 조치", "태스크": "[징계 대상 여부 확정]\n비위 정도에 따른 제재 필요성 판단 및 징계 형평성 교차 검증", "활용계획": "[현재] 과거 징계 사례 수기 검색하여 최종 확정 → [AI 활용] '징계 양정 분석 에이전트'로 과거 사례 DB 학습, 유사 사례 비교표 및 형평성 분석 자동 생성", "담당자": "강인구, 유승창", "에이전트": "A-07. 징계 양정 분석 에이전트", "shift": "H", "과제유형": "신규", "우선순위": "중", "AI활용가능": "O", "구현방법": "두레이/sLLM", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "데이터/교육", "측정유형": "처리시간", "AsIs": "건당 3시간", "ToBe": "건당 1시간 (66% 단축)", "기대효과": "[2시간 단축] 과거 징계·제재 사례 DB 기반 AI 분석으로 징계 형평성 확보", "측정주기": "수시", "비고": "에이전트 분석 리포트\n(유사 사례 비교, AI 판단 근거)"}, {"no": 38, "영역": "Ⅴ. 사후 관리 및 제재", "프로세스": "5.3 징계 조치", "태스크": "[징계 양정 품의]\n양정기준 기반 징계 수위 결정, 품의서 작성 및 인사위원회 자료 작성", "활용계획": "[현재] 과거 작성 자료 참조하여 수기 작성 → [AI 활용] '징계 보고서 에이전트'로 기존과 동일 부의 양식의 보고서, 품의서 자동 생성", "담당자": "강인구, 유승창", "에이전트": "A-07. 징계 양정 분석 에이전트", "shift": "S", "과제유형": "신규", "우선순위": "하", "AI활용가능": "O", "구현방법": "두레이/sLLM", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "데이터/교육", "측정유형": "처리시간", "AsIs": "건당 30분", "ToBe": "건당 10분 (67% 단축)", "기대효과": "[20분 단축] 보고서 에이전트 활용 정형화된 양식 품의 자동 생성", "측정주기": "수시", "비고": "에이전트 분석 리포트\n(품의서 생성, 양식 적용)"}, {"no": 39, "영역": "Ⅴ. 사후 관리 및 제재", "프로세스": "5.3 징계 조치", "태스크": "[징계 수위 비교 검토]\n과거 징계 사례와의 비위 유형·정도 유사성 검토, 양정 참고자료 및 선례 비교", "활용계획": "[현재] 제재 사례 수기 수집, 비교하여 양정 → [AI 활용] '징계 비교 AI 에이전트'로 과거 사례 DB 기반 비위 유형·정도 유사성 분석 및 양정 참조", "담당자": "강인구, 유승창", "에이전트": "A-07. 징계 양정 분석 에이전트", "shift": "H", "과제유형": "신규", "우선순위": "중", "AI활용가능": "O", "구현방법": "두레이/sLLM", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "데이터/교육", "측정유형": "처리시간", "AsIs": "건당 2시간", "ToBe": "건당 20분 (83% 단축)", "기대효과": "[1시간 40분 단축] 과거 징계 사례 유사도 AI 분석으로 양정 참고자료 자동 제공", "측정주기": "수시", "비고": "에이전트 분석 리포트\n(유사 사례 비교, AI 양정 참조)"}, {"no": 40, "영역": "Ⅴ. 사후 관리 및 제재", "프로세스": "5.4 DB 관리", "태스크": "[주요 지적사례 DB화]\n지적·징계 사례 체계적 DB 구축 및 검색 가능 태그 분류 적용", "활용계획": "[현재] 징계 품의 후 사례 수기 누적 관리 → [AI 활용] '징계 양정 분석 에이전트'로 신규 징계건 DB 자동 누적, 통계 분석 자료 자동 생성", "담당자": "강인구, 유승창", "에이전트": "A-07. 징계 양정 분석 에이전트", "shift": "S", "과제유형": "신규", "우선순위": "하", "AI활용가능": "O", "구현방법": "sLLM/API", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "데이터/교육/기술지원", "측정유형": "커버리지", "AsIs": "AI 커버 10%", "ToBe": "AI 커버 90% (80%p 확대)", "기대효과": "[AI 커버리지 80%p 확대] 징계·제재 사례 DB 자동 누적 및 금감원·공정위 API 연동", "측정주기": "수시", "비고": "에이전트 분석 리포트\n(징계사례 DB, API 수집)"}, {"no": 41, "영역": "Ⅵ. 정기점검 및 일상감사", "프로세스": "6.1 일상감사 프로세스", "태스크": "[서류 구비 사전 점검]\n3천만 원 이상 계약 서류 구비 여부 사전 점검 및 질의 응답", "활용계획": "[현재] 피감부서 문의에 담당자 개별 응대 → [AI 활용] '일상감사 Q&A 챗봇'으로 sLLM 기반 반복 문의 자동 응대, 두레이 채널 연동하여 자료 접수 및 의견서 회신 자동화", "담당자": "강인구", "에이전트": "A-08. 일상감사 통합 에이전트", "shift": "SH", "과제유형": "고도화", "우선순위": "상", "AI활용가능": "O", "구현방법": "sLLM", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "24.04.16", "진척률": 0.8, "제약사유": "-", "필요지원": "API", "측정유형": "처리시간", "AsIs": "건당 2시간", "ToBe": "건당 15분 (88% 단축)", "기대효과": "[1시간 45분 단축] AI 챗봇 규정 질의 응답 및 계약서류 자동 검증으로 점검 시간 절감", "측정주기": "분기", "비고": "계약 서류 징구 시스템 로그"}, {"no": 42, "영역": "Ⅵ. 정기점검 및 일상감사", "프로세스": "6.1 일상감사 프로세스", "태스크": "[계약서 필수 조항 점검]\n계약서 내 필수 조항 포함 여부 수기 점검", "활용계획": "[현재] 계약서 필수 조항 포함 여부 수기 점검 → [AI 활용] '계약서 점검 AI 에이전트'로 필수 조항 자동 탐지, 누락 항목 알림 및 조항별 적정성 자동 검토", "담당자": "강인구", "에이전트": "A-08. 일상감사 통합 에이전트", "shift": "SH", "과제유형": "고도화", "우선순위": "상", "AI활용가능": "O", "구현방법": "sLLM", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "", "진척률": 0.5, "제약사유": "-", "필요지원": "교육", "측정유형": "처리시간", "AsIs": "건당 1시간", "ToBe": "건당 10분 (83% 단축)", "기대효과": "[50분 단축] 계약서 필수 조항 포함 여부 AI 자동 점검", "측정주기": "분기", "비고": "에이전트 분석 리포트\n(조항 점검, 누락 알림)"}, {"no": 43, "영역": "Ⅵ. 정기점검 및 일상감사", "프로세스": "6.1 일상감사 프로세스", "태스크": "[계약 정당성 검토]\n3천만 원 이상 계약 필요성 및 상대방 선정 절차 정당성 검토", "활용계획": "[현재] 계약 필요성·선정 절차 수기 검토 → [AI 활용] '계약 정당성 검토 AI 에이전트'로 계약 목적·선정 근거 자동 분석, 절차 적정성 판단 및 유사 계약 비교", "담당자": "강인구", "에이전트": "A-08. 일상감사 통합 에이전트", "shift": "SH", "과제유형": "고도화", "우선순위": "상", "AI활용가능": "O", "구현방법": "에이전트", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "", "진척률": 0.5, "제약사유": "-", "필요지원": "API/ 교육", "측정유형": "처리시간", "AsIs": "건당 2시간", "ToBe": "건당 30분 (75% 단축)", "기대효과": "[1.5시간 단축] AI 유사 계약 사례 비교 분석으로 계약 정당성 검토 효율화", "측정주기": "분기", "비고": "업무일지, 계약 처리 이력"}, {"no": 44, "영역": "Ⅵ. 정기점검 및 일상감사", "프로세스": "6.1 일상감사 프로세스", "태스크": "[가격 적정성 검증]\n계약 조항 및 가격 적정성 검증", "활용계획": "[현재] 계약 가격 적정성 수기 검증 → [AI 활용] '가격 검증 AI 에이전트'로 시장가·과거 계약 DB 비교, 가격 적정성 자동 평가 및 이상 가격 알림", "담당자": "강인구", "에이전트": "A-08. 일상감사 통합 에이전트", "shift": "SH", "과제유형": "고도화", "우선순위": "상", "AI활용가능": "O", "구현방법": "에이전트", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "", "진척률": 0.5, "제약사유": "-", "필요지원": "데이터/교육", "측정유형": "처리시간", "AsIs": "건당 3시간", "ToBe": "건당 30분 (83% 단축)", "기대효과": "[2.5시간 단축] AI 모니터링 시스템 활용 비용 증빙 자동 점검 및 딥리서치 활용한 가격 비교", "측정주기": "분기", "비고": "계약 단가 DB, 시장가 비교 데이터"}, {"no": 45, "영역": "Ⅵ. 정기점검 및 일상감사", "프로세스": "6.1 일상감사 프로세스", "태스크": "[감사 의견서 작성]\n일상감사 의견서 초안 작성 및 계약 적정성 판단 근거 문서화", "활용계획": "[현재] 일상감사 의견서 수기 작성 → [AI 활용] '의견서 작성 AI 에이전트'로 계약 검토 결과 종합, 표준 양식 의견서 초안 자동 생성", "담당자": "강인구", "에이전트": "A-08. 일상감사 통합 에이전트", "shift": "SH", "과제유형": "고도화", "우선순위": "상", "AI활용가능": "O", "구현방법": "에이전트/claude", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "", "진척률": 0.5, "제약사유": "-", "필요지원": "API/ 데이터", "측정유형": "처리시간", "AsIs": "건당 2시간", "ToBe": "건당 15분 (88% 단축)", "기대효과": "[1시간 45분 단축] AI 분석으로 이상징후 사전 알림 및 이에 따른 의견서 초안 작성", "측정주기": "분기", "비고": "AI 의견서 초안 작성 이력"}, {"no": 46, "영역": "Ⅵ. 정기점검 및 일상감사", "프로세스": "6.2 비용집행 적정성", "태스크": "[비용 내역 DB 추출]\nBSP 內 추가경정·지급전표·지출결의서·법인카드 내역 DB 추출", "활용계획": "[현재] BSP에서 추가예산·전표·법인카드 데이터 수기 추출 → [AI 활용] 'BSP 데이터 연계 에이전트'로 주기적 데이터 자동 추출, 분석용 데이터셋 자동 전처리", "담당자": "신승식, 유승창", "에이전트": "A-09. 부정거래·경비집행 탐지 에이전트", "shift": "SH", "과제유형": "신규", "우선순위": "상", "AI활용가능": "△", "구현방법": "기타", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "BSP정보 연동 또는 배치 권한", "필요지원": "데이터/교육/기술지원", "측정유형": "처리시간", "AsIs": "건당 1시간", "ToBe": "건당 10분 (83% 단축)", "기대효과": "[50분 단축] AI 기반 비용 내역 자동 추출 및 데이터 정형화로 수작업 절감", "측정주기": "분기", "비고": "에이전트 분석 리포트\n(데이터 추출 기록)"}, {"no": 47, "영역": "Ⅵ. 정기점검 및 일상감사", "프로세스": "6.2 비용집행 적정성", "태스크": "[법인카드 지침 준수 확인]\n법인카드 목적 외 사적사용·금지업종 사용 등 내규 준수 확인", "활용계획": "[현재] 법인카드 사용 내역 수기 점검 → [AI 활용] '카드 사용 분석 에이전트'로 심야·휴일·분할결제 등 이상 패턴 룰 규정위반, 이상거래 자동 탐지", "담당자": "신승식, 유승창", "에이전트": "A-09. 부정거래·경비집행 탐지 에이전트", "shift": "SH", "과제유형": "신규", "우선순위": "상", "AI활용가능": "O", "구현방법": "sLLM", "착수상태": "착수", "목표완료": "2026 Q3", "공식완료일": "24.04.16", "진척률": 0.6, "제약사유": "-", "필요지원": "API/데이터", "측정유형": "커버리지", "AsIs": "모니터링 20%", "ToBe": "모니터링 80% (60%p 확대)", "기대효과": "[모니터링 60%p 확대] 법인카드 사용 패턴 AI 분석 및 이상 징후 자동 탐지", "측정주기": "분기", "비고": "AI 웹앱 패턴 분석, 이상 탐지로그"}, {"no": 48, "영역": "Ⅵ. 정기점검 및 일상감사", "프로세스": "6.2 비용집행 적정성", "태스크": "[법인카드 사용 현황 통계, 보고]\n의심거래 및 시간별, 지역별, 개인별로 분석 및 보고서 작성", "활용계획": "[현재] 법인카드 사용 현황 수기 집계·분석 → [AI 활용] '카드 분석 AI 에이전트'로 시간별·지역별·개인별 사용 패턴 자동 분석, 의심거래 보고서 자동 생성", "담당자": "신승식, 유승창", "에이전트": "A-09. 부정거래·경비집행 탐지 에이전트", "shift": "SH", "과제유형": "신규", "우선순위": "상", "AI활용가능": "O", "구현방법": "sLLM", "착수상태": "착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0.6, "제약사유": "-", "필요지원": "API/데이터", "측정유형": "처리시간", "AsIs": "회당 10시간", "ToBe": "회당 2시간 (80% 단축)", "기대효과": "[8시간 단축] AI 기반 시각화 자료 자동 완성 및 일관성 있는 형식의 보고서 작성 자동화", "측정주기": "반기", "비고": "AI 웹앱 보고서 작성 로그"}, {"no": 49, "영역": "Ⅵ. 정기점검 및 일상감사", "프로세스": "6.2 비용집행 적정성", "태스크": "[예산 집행 적정성 점검]\n주요 계약 비용 집행, 추가경정 예산 점검 및 3천만 원 대상 누락 점검", "활용계획": "[현재] 예산 집행·추가경정 현황 수기 점검 → [AI 활용] 'python을 통해 예산 집행, 추가경정, 불명확한 집행을 자동으로 식별하고 이상거래를 식별하는 자동화 시스템 개발", "담당자": "신승식, 유승창", "에이전트": "A-09. 부정거래·경비집행 탐지 에이전트", "shift": "SH", "과제유형": "신규", "우선순위": "중", "AI활용가능": "O", "구현방법": "sLLM", "착수상태": "착수", "목표완료": "2026 Q3", "공식완료일": "24.04.16", "진척률": 1.0, "제약사유": "-", "필요지원": "데이터", "측정유형": "처리시간", "AsIs": "건당 4시간", "ToBe": "건당 30분 (88% 단축)", "기대효과": "[3.5시간 단축] 주요 계약 비용 집행 및 추가경정 예산 전 과정 AI 자동 검증", "측정주기": "분기", "비고": "에이전트 분석 리포트\n(예산 모니터링, 누락 스크리닝)"}, {"no": 50, "영역": "Ⅵ. 정기점검 및 일상감사", "프로세스": "6.3 부정 탐지", "태스크": "[부정 행위 상시 탐지]\n임직원 비위 징후 상시 모니터링, 채권추심 실적 조작·허위 보고 등 탐지", "활용계획": "[현재] 추심·회생 실적 데이터 수기 검토 → [AI 활용] '부정행위 탐지 에이전트'로 월별 데이터 자동 수집, 이상 회수금액, 실적 탐지", "담당자": "신승식, 유승창", "에이전트": "A-09. 부정거래·경비집행 탐지 에이전트", "shift": "SH", "과제유형": "신규", "우선순위": "상", "AI활용가능": "△", "구현방법": "에이전트", "착수상태": "미착수", "목표완료": "2026 Q4", "공식완료일": "", "진척률": 0, "제약사유": "BSP정보 연동 또는 배치 권한", "필요지원": "API/데이터/교육/기술지원", "측정유형": "커버리지", "AsIs": "AI 커버 10%", "ToBe": "AI 커버 90% (80%p 확대)", "기대효과": "[AI 커버리지 80%p 확대] 채권회수 금액 관련 비정상 수치 탐지  등", "측정주기": "분기", "비고": "에이전트 분석 리포트\n(이상치 분석, 비위 의심 알림)"}, {"no": 51, "영역": "Ⅵ. 정기점검 및 일상감사", "프로세스": "6.3 부정 탐지", "태스크": "[이상 거래 보고]\n발견된 이상 거래 건별 분석, 발견 사유·위험도·권고 조치 포함 보고서 작성", "활용계획": "[현재] 이상거래 건별 분석·보고서 수기 작성 → [AI 활용] '이상거래 보고 AI 에이전트'로 탐지 건 자동 분석, 위험도·권고조치 포함 보고서 자동 생성", "담당자": "신승식, 유승창", "에이전트": "A-09. 부정거래·경비집행 탐지 에이전트", "shift": "SH", "과제유형": "신규", "우선순위": "상", "AI활용가능": "O", "구현방법": "에이전트", "착수상태": "미착수", "목표완료": "2026 Q4", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "교육/기술지원", "측정유형": "처리시간", "AsIs": "건당 2시간", "ToBe": "건당 15분 (88% 단축)", "기대효과": "[1시간 45분 단축] 이상 거래 알림 자동 발송 및 분석 보고서 자동 생성", "측정주기": "분기", "비고": "에이전트 분석 리포트\n(알림 로그, 보고서 생성)"}, {"no": 52, "영역": "Ⅶ. 상시감시 및 법규 점검", "프로세스": "7.1 채권추심 모니터링", "태스크": "[불법 추심 행위 점검]\nBSP 상담기록·통화 녹취 분석 통한 협박·욕설·과잉 독촉 등 불법 추심 탐지", "활용계획": "[현재] 추심 녹취 청취하여 불법추심 여부 확인 → [AI 활용] '불법추심 탐지 에이전트'로 STT 텍스트 변환, TA 시스템이 불법추심 키워드·문맥 추출 및 의심 건 우선순위화", "담당자": "강인구", "에이전트": "A-03. 인터뷰·회의 STT 분석 에이전트", "shift": "SH", "과제유형": "신규", "우선순위": "상", "AI활용가능": "△", "구현방법": "sLLM", "착수상태": "미착수", "목표완료": "2026 Q4", "공식완료일": "", "진척률": 0, "제약사유": "BSP정보 연동 또는 배치 권한", "필요지원": "API/데이터/교육/기술지원", "측정유형": "처리시간", "AsIs": "건당 5시간", "ToBe": "건당 1시간 (80% 단축)", "기대효과": "[4시간 단축] BSP SMS, DM 등 추심 이력 및 녹취 자료 STT 후 AI 키워드 분석을 통한 불법 추심 의심 사례 선별", "측정주기": "분기", "비고": "변환 데이터, AI 분석 의심 사례"}, {"no": 53, "영역": "Ⅶ. 상시감시 및 법규 점검", "프로세스": "7.1 채권추심 모니터링", "태스크": "[상담 녹취 검토]\n상담 녹취 음성 청취 검토, 고객 불만·상담원 과격 어조 확인", "활용계획": "[현재] 상담 녹취 음성 청취하여 문제 발화 확인 → [AI 활용] '녹취 분석 AI 에이전트'로 녹취 내용의 감정 분석, 고객 불만·과격 어조 자동 탐지 및 위험 건 우선순위화", "담당자": "강인구", "에이전트": "A-03. 인터뷰·회의 STT 분석 에이전트", "shift": "SH", "과제유형": "신규", "우선순위": "상", "AI활용가능": "O", "구현방법": "sLLM", "착수상태": "미착수", "목표완료": "2026 Q4", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "API/데이터/교육", "측정유형": "커버리지", "AsIs": "분석 커버 10%", "ToBe": "분석 커버 70% (60%p 확대)", "기대효과": "[분석 커버리지 60%p 확대] 상담 녹취 감정 분석으로 불법 추심 위험 조기 탐지", "측정주기": "분기", "비고": "에이전트 분석 리포트\n (감정 분석, 위험 탐지)"}, {"no": 54, "영역": "Ⅶ. 상시감시 및 법규 점검", "프로세스": "7.1 채권추심 모니터링", "태스크": "[통지 문구 법규 점검]\nDM·SMS·안내문 등 대외 발송 문구 금소법·추심법 위반 소지 사전 확인", "활용계획": "[현재] DM·SMS 문구 수기 법규 검토 → [AI 활용] '통지문구 법규점검 AI 에이전트'로 채권추심법 등 금지 표현 자동 탐지, 우회 표현 패턴까지 학습하여 점검", "담당자": "강인구", "에이전트": "A-10. 추심·통지 문구 적법성 점검 에이전트", "shift": "S", "과제유형": "신규", "우선순위": "상", "AI활용가능": "O", "구현방법": "sLLM", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "", "진척률": 0.1, "제약사유": "-", "필요지원": "교육", "측정유형": "처리시간", "AsIs": "건당 1시간", "ToBe": "건당 10분 (83% 단축)", "기대효과": "[50분 단축] 위반 소지 문구 탐지 및 적정 수정안 AI 자동 제안", "측정주기": "분기", "비고": "에이전트 분석 리포트\n(문구 수정, 제안 이력)"}, {"no": 55, "영역": "Ⅶ. 상시감시 및 법규 점검", "프로세스": "7.2 자금세탁방지", "태스크": "[AML 이행 적정성 점검]\nSTR·자금세탁방지 업무 이행 적정성 점검 및 이사회 보고", "활용계획": "[현재] 회원 데이터 수기 검토하여 보고서 생성 → [AI 활용] 'AML 점검 에이전트'로 계열사별 지적사항 분류 및 요약 및 보고서 자동 생성", "담당자": "강인구, 신승식", "에이전트": "B-01. AML 점검 에이전트", "shift": "H", "과제유형": "신규", "우선순위": "상", "AI활용가능": "O", "구현방법": "에이전트", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "데이터", "측정유형": "처리시간", "AsIs": "건당 8시간", "ToBe": "건당 2시간 (75% 단축)", "기대효과": "[6시간 단축] 경영진 보고서 AI 초안 작성 및 핵심 지적사항 자동 요약", "측정주기": "반기", "비고": "에이전트 분석 리포트 \n(주요 지적 요약, 보고서)"}, {"no": 56, "영역": "Ⅷ. 해외법인 감사 및 관리", "프로세스": "8.1 해외 기획/모니터링", "태스크": "[해외 보고체계 운영]\n해외법인 감사부서 정기·수시 보고체계 운영", "활용계획": "[현재] 해외법인 감사 보고서 정기 징구로 사전 위험 탐지 → [AI 활용] '해외 보고서 번역·요약 에이전트'로 자동 번역, 지적사항 구조화하여 DB 증적, 리포트 자동 생성", "담당자": "유승창, 신승식", "에이전트": "A-11. 해외법인 감사 지원 에이전트", "shift": "SH", "과제유형": "고도화", "우선순위": "중", "AI활용가능": "O", "구현방법": "에이전트/claude", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "", "진척률": 0.2, "제약사유": "-", "필요지원": "API/데이터/교육", "측정유형": "처리시간", "AsIs": "연 1회 정기", "ToBe": "실시간 상시", "기대효과": "[상시 모니터링] AI 번역 및 분석 기반 보고 내용 상 내부통제 취약점 탐지 및 리스크 증적", "측정주기": "월간", "비고": "에이전트 분석 리포트\n(AI 리스크 탐지 내용)"}, {"no": 57, "영역": "Ⅷ. 해외법인 감사 및 관리", "프로세스": "8.1 해외 기획/모니터링", "태스크": "[감사 실적 문서 분석]\n해외법인 감사 실적·계획 문서 분석 및 현지 규정-그룹 정책 간 정합성 검토", "활용계획": "[현재] 해외법인 감사 문서 정합성 수기 검토 → [AI 활용] '해외 감사 분석 AI 에이전트'로 현지 규정-그룹 정책 간 정합성 자동 분석, 불일치 항목 리포트 생성", "담당자": "유승창, 신승식", "에이전트": "A-11. 해외법인 감사 지원 에이전트", "shift": "H", "과제유형": "고도화", "우선순위": "상", "AI활용가능": "O", "구현방법": "Claude/sLLM", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "", "진척률": 0.2, "제약사유": "-", "필요지원": "API/데이터/교육", "측정유형": "처리시간", "AsIs": "건당 10시간", "ToBe": "건당 2시간 (80% 단축)", "기대효과": "[8시간 단축] AI 자동 분류 및 현지 법규 정합성 분석으로 문서 검토 시간 절감", "측정주기": "월간", "비고": "에이전트 분석 리포트\n(정합성 분석, 불일치 항목)"}, {"no": 58, "영역": "Ⅷ. 해외법인 감사 및 관리", "프로세스": "8.1 해외 기획/모니터링", "태스크": "[해외법인 리스크 지표 모니터링]\n해외법인 핵심 지표 정기 모니터링 및 보고", "활용계획": "[현재] 해외법인 핵심 지표 간담회 자료 수기 모니터링 → [AI 활용] '해외 리스크 모니터링 AI 에이전트'로 핵심 지표 DB 적재 및 시기별 변동 추이, 이상 징후 자동 알림", "담당자": "유승창, 신승식", "에이전트": "A-11. 해외법인 감사 지원 에이전트", "shift": "SH", "과제유형": "신규", "우선순위": "상", "AI활용가능": "O", "구현방법": "에이전트/API", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "API/데이터", "측정유형": "커버리지", "AsIs": "모니터링 20%", "ToBe": "모니터링 80% (60%p 확대)", "기대효과": "[모니터링 60%p 확대] 해외법인 운영 지표 DB 증적 및 AI 모니터링 체계 구축", "측정주기": "월간", "비고": "에이전트 분석 리포트\n(현황 지표, DB 증적 로그)"}, {"no": 59, "영역": "Ⅷ. 해외법인 감사 및 관리", "프로세스": "8.2 현지 실무 점검", "태스크": "[캄보디아 PPCB 감사위원회 지원]\nPPCB 자료 사전 검토 및 감사위원 의견 전달 관리", "활용계획": "[현재] PPCB 자료 사전 검토 및 의견 전달 수기 관리 → [AI 활용] '해외법인 지원 AI 에이전트'로 자료 실시간 번역, 브리핑 자료 자동 생성 및 감사위원 의견 정리", "담당자": "유승창, 신승식", "에이전트": "A-11. 해외법인 감사 지원 에이전트", "shift": "H", "과제유형": "고도화", "우선순위": "중", "AI활용가능": "O", "구현방법": "Claude/sLLM", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "", "진척률": 0.2, "제약사유": "-", "필요지원": "API", "측정유형": "처리시간", "AsIs": "건당 6시간", "ToBe": "건당 1시간 (83% 단축)", "기대효과": "[5시간 단축] AI 번역, 요약 및 현지 규정 고려한 인사이트 생성", "측정주기": "분기", "비고": "에이전트 분석 리포트\n(실시간 번역, 브리핑 자료)"}, {"no": 60, "영역": "Ⅷ. 해외법인 감사 및 관리", "프로세스": "8.2 현지 실무 점검", "태스크": "[인도네시아 법인 감사 분석]\nOK BANK·ASSET 자체 감사팀 업무 결과 분석 및 인사이트 도출", "활용계획": "[현재] OK BANK·ASSET 감사 결과 수기 분석 → [AI 활용] '해외법인 분석 AI 에이전트'로 자체 감사 결과 실시간 번역·분석, 인사이트 자동 도출 및 브리핑 자료 생성", "담당자": "유승창, 신승식", "에이전트": "A-11. 해외법인 감사 지원 에이전트", "shift": "H", "과제유형": "신규", "우선순위": "중", "AI활용가능": "O", "구현방법": "Claude/sLLM", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "", "진척률": 0.2, "제약사유": "-", "필요지원": "API", "측정유형": "처리시간", "AsIs": "건당 6시간", "ToBe": "건당 1시간 (83% 단축)", "기대효과": "[5시간 단축] AI 번역, 요약 및 현지 규정 고려한 인사이트 생성", "측정주기": "월간", "비고": "에이전트 분석 리포트\n(실시간 번역, 브리핑 자료)"}, {"no": 61, "영역": "Ⅷ. 해외법인 감사 및 관리", "프로세스": "8.3 현장 감사 지원", "태스크": "[현지 통번역 지원]\n해외 현장 감사 시 현지어 문서 분석 및 인터뷰 통번역", "활용계획": "[현재] 해외 현장 감사 시 통역 수기 진행 → [AI 활용] Gemini/Claude 실시간 번역 도구 활용, OCR+AI로 현지 문서 스캔하여 핵심 정보 및 리스크 키워드 자동 추출", "담당자": "범용", "에이전트": "A-11. 해외법인 감사 지원 에이전트", "shift": "S", "과제유형": "고도화", "우선순위": "상", "AI활용가능": "△", "구현방법": "기타\n(범용 LLM)", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "", "진척률": 0.2, "제약사유": "해외 현지 감사시에는\n sLLM 활용 불가", "필요지원": "범용AI(제미나이/클로드/티로 등)", "측정유형": "처리시간", "AsIs": "건당 4시간", "ToBe": "건당 30분 (88% 단축)", "기대효과": "[3.5시간 단축] 범용 AI 실시간 번역으로 해외 현지문서 분석력 강화", "측정주기": "반기", "비고": "범용 AI 실시간 번역 로그"}, {"no": 62, "영역": "Ⅷ. 해외법인 감사 및 관리", "프로세스": "8.3 현장 감사 지원", "태스크": "[해외 감사 자료 표준화]\n해외법인 감사 자료 양식 표준화 및 수기 변환", "활용계획": "[현재] 해외법인 감사 자료 양식 수기 변환·표준화 → [AI 활용] '양식 표준화 AI 에이전트'로 다양한 양식 자동 변환, 표준 템플릿 적용 및 데이터 정합성 검증", "담당자": "범용", "에이전트": "A-11. 해외법인 감사 지원 에이전트", "shift": "S", "과제유형": "고도화", "우선순위": "중", "AI활용가능": "O", "구현방법": "기타(범용 LLM)", "착수상태": "착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0.2, "제약사유": "-", "필요지원": "교육/기술지원", "측정유형": "처리시간", "AsIs": "건당 3시간", "ToBe": "건당 30분 (83% 단축)", "기대효과": "[2.5시간 단축] 해외 감사 자료 양식 표준화 및 자동 변환", "측정주기": "반기", "비고": "에이전트 분석 리포트\n(양식 변환, 표준화 적용)"}, {"no": 63, "영역": "Ⅷ. 해외법인 감사 및 관리", "프로세스": "8.3 현장 감사 지원", "태스크": "[해외 특이사항 보고]\n해외법인 특이사항 발생 시 문답 실시 및 유관부서 통보", "활용계획": "[현재] 해외 현지 Q&A 및 수집 자료 수기 정리 → [AI 활용] '해외법인 예외사항 분석 AI 에이전트'로 현지 데이터 즉시 분석, 챗봇 및 자료 증적 자동", "담당자": "범용", "에이전트": "A-11. 해외법인 감사 지원 에이전트", "shift": "H", "과제유형": "고도화", "우선순위": "상", "AI활용가능": "△", "구현방법": "기타\n(범용 LLM)", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "", "진척률": 0.2, "제약사유": "해외 현지 감사시에는\n sLLM 활용 불가", "필요지원": "범용AI(제미나이/클로드/티로 등)", "측정유형": "처리시간", "AsIs": "회당 16시간", "ToBe": "회당 8시간 (50% 단축)", "기대효과": "[8시간 단축] 범용 AI 활용 현지 문답서 즉시 분석 및 보고서 초안 자동 생성", "측정주기": "반기", "비고": "범용 AI로 생성한 문답서, 보고서"}, {"no": 64, "영역": "Ⅸ. 거버넌스 및 대외 대응", "프로세스": "9.1 거버넌스 지원", "태스크": "[민원 유형 분석]\n민원 데이터 유형별 분류 분석 및 개선 포인트 도출", "활용계획": "[현재] 민원 데이터 유형별 수기 분류·분석 → [AI 활용] '민원 분석 AI 에이전트'로 민원 유형 자동 분류, 귀책 판단 및 개선 포인트 자동 도출", "담당자": "강인구", "에이전트": "B-02. 민원 리스크 분석 에이전트", "shift": "H", "과제유형": "신규", "우선순위": "중", "AI활용가능": "O", "구현방법": "sLLM", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "데이터/교육", "측정유형": "커버리지", "AsIs": "분석 커버 20%", "ToBe": "분석 커버 80% (60%p 확대)", "기대효과": "[분석 커버리지 60%p 확대] 민원 유형별 패턴 AI 분류, 귀책 여부 판단, 개선 포인트 도출", "측정주기": "분기", "비고": "에이전트 분석 리포트\n(귀책 판단, 개선 제안)"}, {"no": 65, "영역": "Ⅸ. 거버넌스 및 대외 대응", "프로세스": "9.1 거버넌스 지원", "태스크": "[민원 리스크 관리]\n그룹사 대외 민원 처리 적정성 분석 및 리뷰", "활용계획": "[현재] 그룹 민원 데이터 수기 검토 → [AI 활용] '민원 리스크 분석 에이전트'로 sLLM이 민원 패턴·법적 리스크 분석, 유사 사례 기반 리뷰 보고서 및 예방 교육 자료 생성", "담당자": "강인구", "에이전트": "B-02. 민원 리스크 분석 에이전트", "shift": "H", "과제유형": "신규", "우선순위": "상", "AI활용가능": "O", "구현방법": "sLLM", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "데이터/교육/기술지원", "측정유형": "처리시간", "AsIs": "회당 24시간", "ToBe": "회당 8시간 (67% 단축)", "기대효과": "[16시간 단축] sLLM 기반 민원 데이터 분석으로 최종 리스크 리뷰 및 예방 교육 자료 생성", "측정주기": "분기", "비고": "에이전트 분석 리포트\n(패턴 분석, 예방 교육자료)"}, {"no": 66, "영역": "Ⅸ. 거버넌스 및 대외 대응", "프로세스": "9.1 거버넌스 지원", "태스크": "[보호감시인 점검]\n이용자 보호 정기 점검 활동 취합 및 선임 관리", "활용계획": "[현재] 보호감시인 업무 현황 수기 집계 → [AI 활용] 표준화된 모니터링 데이터를 두레이/sLLM에 업로드, 부서별 실시간 공유 및 대시보드 기반 관리 체계 구축", "담당자": "신승식", "에이전트": "B-04. 보호감시인·위수탁 관리 에이전트", "shift": "S", "과제유형": "신규", "우선순위": "중", "AI활용가능": "△", "구현방법": "sLLM/에이전트", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "데이터/기술지원", "측정유형": "처리시간", "AsIs": "월 8시간", "ToBe": "월 2시간 (75% 단축)", "기대효과": "[6시간 단축] 점검 데이터 표준화 및 체계적 관리로 업무 여력 확보", "측정주기": "분기", "비고": "두레이 워크플로우 로그 및 점검 활동 이력"}, {"no": 67, "영역": "Ⅸ. 거버넌스 및 대외 대응", "프로세스": "9.1 거버넌스 지원", "태스크": "[감사 위수탁 관리]\n그룹사 자회사 조사권 및 감사 위수탁 업무 시계열 관리", "활용계획": "[현재] 감사 시계열별 위수탁 현황 수기 관리 → [AI 활용] '감사 위수탁 에이전트'로 위수탁 DB 증적, AI가 시계열별 위수탁 인원, 업무 가능 범위 자동 분류", "담당자": "신승식", "에이전트": "B-04. 보호감시인·위수탁 관리 에이전트", "shift": "S", "과제유형": "신규", "우선순위": "하", "AI활용가능": "O", "구현방법": "두레이", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "", "진척률": 0.1, "제약사유": "-", "필요지원": "API/기술지원", "측정유형": "커버리지", "AsIs": "관리 비중 50%", "ToBe": "관리 비중 90% (40%p 확대)", "기대효과": "[관리 커버리지 40%p 확대] AI DB 증적을 통한 스케줄링, 위수탁 계약 자동 알림 활용", "측정주기": "반기", "비고": "에이전트 분석 리포트\n(시계열별 위수탁 증빙 로그)"}, {"no": 68, "영역": "Ⅸ. 거버넌스 및 대외 대응", "프로세스": "9.1 거버넌스 지원", "태스크": "[외부감사인 관리]\n외부감사인 선정위원회 소집 및 준수사항 사후 평가", "활용계획": "[현재] 준수사항 사후평가서 수기 작성 → [AI 활용] sLLM이 기 제공된 운영 계획 DB 증적 및 실제 이행사항 업로드 바탕으로 사후평가 보고서 자동 생성", "담당자": "유승창", "에이전트": "B-06. 외부 감사인 관리 에이전트", "shift": "SH", "과제유형": "신규", "우선순위": "하", "AI활용가능": "△", "구현방법": "sLLM/에이전트", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "데이터/기술지원", "측정유형": "처리시간", "AsIs": "회당 10시간", "ToBe": "회당 2시간 (80% 단축)", "기대효과": "[8시간 단축] AI 기반 사후평가에 대한 표준화 보고서 생성", "측정주기": "반기", "비고": "에이전트 분석 리포트\n(회사별 AI 생성 사후평가 자료)"}, {"no": 69, "영역": "Ⅸ. 거버넌스 및 대외 대응", "프로세스": "9.2 대외기관 수검", "태스크": "[수검 자료 사전 통제]\n감독기관 요청 자료 적정성 검토 및 제출 전 사전 통제", "활용계획": "[현재] 감독기관 요청 자료 수기 분석 → [AI 활용] '감독기관 대응 에이전트'로 요청서·규정·가이드라인 학습, 요청 의도·법적 리스크 분석 및 검사 방향 예측 리포트 생성", "담당자": "이정", "에이전트": "A-12. 감독기관 대응 에이전트", "shift": "SH", "과제유형": "신규", "우선순위": "상", "AI활용가능": "O", "구현방법": "sLLM", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "데이터/교육/기술지원", "측정유형": "처리시간", "AsIs": "건당 10시간", "ToBe": "건당 2시간 (80% 단축)", "기대효과": "[8시간 단축] sLLM 활용 요청 의도 분석 및 자료 적정성 사전 검토 자동화", "측정주기": "수시", "비고": "에이전트 분석 리포트\n(의도 분석, 검사 방향 예측)"}, {"no": 70, "영역": "Ⅸ. 거버넌스 및 대외 대응", "프로세스": "9.2 대외기관 수검", "태스크": "[수검 진행 모니터링]\n수검일지 작성, 감독 대응 관리 및 정보 유출 리스크 방지", "활용계획": "[현재] 수검일지 수기 작성 → [AI 활용] '수검일지 관리 AI 에이전트'로 일일 감사 관찰 사항 자동 기록, 수검일지 초안 생성 및 진행 현황 대시보드 실시간 모니터링", "담당자": "이정", "에이전트": "A-12. 감독기관 대응 에이전트", "shift": "F", "과제유형": "신규", "우선순위": "상", "AI활용가능": "△", "구현방법": "sLLM/에이전트", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "교육/기술지원", "측정유형": "예측정확도", "AsIs": "예측 적중률 50%", "ToBe": "예측 적중률 80% (30%p 향상)", "기대효과": "[적중률 30%p 향상] AI 기반 수검일지 자동 생성 및 검사 방향 예측 체계 구축", "측정주기": "수시", "비고": "에이전트 분석 리포트\n(수검일지 생성, 예측 적중률)"}, {"no": 71, "영역": "Ⅸ. 거버넌스 및 대외 대응", "프로세스": "9.2 대외기관 수검", "태스크": "[수검 결과 분석]\n수검 결과 분석 및 후속 대응 전략 수립", "활용계획": "[현재] 수검 결과 수기 분석 및 대응 전략 수립 → [AI 활용] '수검 분석 AI 에이전트'로 지적사항 자동 분석, 유사 사례 비교 및 후속 대응 전략 자동 생성", "담당자": "이정", "에이전트": "A-12. 감독기관 대응 에이전트", "shift": "H", "과제유형": "신규", "우선순위": "상", "AI활용가능": "O", "구현방법": "sLLM", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "데이터/교육", "측정유형": "처리시간", "AsIs": "건당 8시간", "ToBe": "건당 2시간 (75% 단축)", "기대효과": "[6시간 단축] 수검 결과 AI 분석 및 대응 전략 자동 제안", "측정주기": "수시", "비고": "에이전트 분석 리포트\n(결과 분석, 대응 전략)"}, {"no": 72, "영역": "Ⅸ. 거버넌스 및 대외 대응", "프로세스": "9.2 대외기관 수검", "태스크": "[수검 보고서 작성]\n수검 지적사항 및 의견서 제출 등 수검 종합 보고서 작성", "활용계획": "[현재] 수검 종합 보고서 수기 작성 → [AI 활용] '수검 보고서 AI 에이전트'로 지적사항·의견서 자동 종합, 표준 양식 보고서 초안 자동 생성", "담당자": "이정", "에이전트": "A-12. 감독기관 대응 에이전트", "shift": "H", "과제유형": "신규", "우선순위": "상", "AI활용가능": "O", "구현방법": "sLLM/에이전트", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "교육/기술지원", "측정유형": "의사결정속도", "AsIs": "건당 3시간", "ToBe": "건당 1시간 (66% 단축)", "기대효과": "[2시간 단축] 수검 종합 결과 보고서 자동 작성으로 신속 보고 체계 구축", "측정주기": "수시", "비고": "에이전트 분석 리포트\n(조서 자동 생성, 보고서 재구성)"}, {"no": 73, "영역": "Ⅸ. 거버넌스 및 대외 대응", "프로세스": "9.3 대외기관 대응", "태스크": "[대외 수발신 총괄]\n금감원 CPC·협회 자료 등 대외기관 수발신 총괄 관리", "활용계획": "[현재] 외부 공문 접수 시 기한 수기 관리 → [AI 활용] AI가 공문에서 기한 정보 자동 추출, 유관부서 요청한 자료 두레이 스케줄 등록 및 담당자 자동 알림, 부서 간 자료 정합성 검증", "담당자": "이정", "에이전트": "A-12. 감독기관 대응 에이전트", "shift": "S", "과제유형": "신규", "우선순위": "상", "AI활용가능": "△", "구현방법": "두레이/sLLM", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "교육/기술지원", "측정유형": "처리시간", "AsIs": "건당 3시간", "ToBe": "건당 1시간 (66% 단축)", "기대효과": "[2시간 단축] AI 기한 자동 추출 및 두레이 스케줄 등록으로 업무 지연 방지", "측정주기": "월간", "비고": "에이전트 분석 리포트\n(기한 추출, 스케줄 등록)"}, {"no": 74, "영역": "Ⅹ. 조직 운영 및 윤리 행정", "프로세스": "10.1 내부신고 제도", "태스크": "[내부신고채널 운영]\n내부신고 시스템 관리, 사실관계 조사 및 익명성 보장 통제 강화", "활용계획": "[현재] 내부 제보 수기 접수·검토 → [AI 활용] '내부제보 분석 에이전트'로 AI 설문 폼(QR/링크)으로 익명 제보 상시 수집, 제보 품질 향상 및 실효성 있는 체계 구축", "담당자": "신승식", "에이전트": "B-03. 내부제보 분석 에이전트", "shift": "SH", "과제유형": "신규", "우선순위": "상", "AI활용가능": "O", "구현방법": "sLLM", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "", "진척률": 0.1, "제약사유": "-", "필요지원": "API/교육", "측정유형": "커버리지", "AsIs": "AI 활용율 20%", "ToBe": "AI 활용율 70% (50%p 확대)", "기대효과": "[커버리지 50%p 확대] AI 설문 폼 생성 및 sLLM 사실관계 분석으로 조사 객관성 제고", "측정주기": "수시", "비고": "에이전트 분석 리포트\n(사실관계 분석, AI 설문 폼)"}, {"no": 75, "영역": "Ⅹ. 조직 운영 및 윤리 행정", "프로세스": "10.1 내부신고 제도", "태스크": "[내부신고내용 법률 분석]\n내부신고 내용 관련 법률 검토 및 리스크 분석", "활용계획": "[현재] 내부신고 내용 법률 검토 수기 수행 → [AI 활용] '법률 분석 AI 에이전트'로 관련 법규 자동 검색, 신고 내용 리스크 자동 분석 및 검토 의견 생성", "담당자": "신승식", "에이전트": "B-03. 내부제보 분석 에이전트", "shift": "SH", "과제유형": "신규", "우선순위": "상", "AI활용가능": "O", "구현방법": "에이전트/sLLM", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "API/교육", "측정유형": "처리시간", "AsIs": "회당 2시간", "ToBe": "회당 0.5시간 (75% 단축)", "기대효과": "[1.5시간 단축] 신고 내용에 대한 법률 검토 및 리스크 분석을 통한 접근 방안 마련", "측정주기": "분기", "비고": "에이전트 분석 리포트\n(법률 분석, 검토 기록)"}, {"no": 76, "영역": "Ⅹ. 조직 운영 및 윤리 행정", "프로세스": "10.1 내부신고 제도", "태스크": "[신고 활성화 캠페인]\n내부신고 활성화 캠페인 실시 및 홍보 콘텐츠 제작", "활용계획": "[현재] 내부 제보 활성화 캠페인 콘텐츠 수기 제작 → [AI 활용] '콘텐츠 디자인 AI 에이전트'로 범용 AI 활용한 포스터·홍보 콘텐츠 자동 제작 및 타겟별 다양한 시안 생성", "담당자": "신승식", "에이전트": "B-03. 내부제보 분석 에이전트", "shift": "H", "과제유형": "고도화", "우선순위": "상", "AI활용가능": "O", "구현방법": "OK GPT/범용LLM", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "24.04.16", "진척률": 1.0, "제약사유": "-", "필요지원": "교육/기술지원", "측정유형": "커버리지", "AsIs": "AI 활용 20%", "ToBe": "AI 활용 40% (20%p 확대)", "기대효과": "[AI 활용 20%p 확대] AI 디자인 기능 활용 캠페인 콘텐츠 제작 시간 단축", "측정주기": "수시", "비고": "에이전트 분석 리포트\n(이미지 생성, 콘텐츠 제작)"}, {"no": 77, "영역": "Ⅹ. 조직 운영 및 윤리 행정", "프로세스": "10.2 윤리 및 기강", "태스크": "[기강확립 및 서약서 징구]\n명절 기강 확립 공지, 선물 신고 관리 및 윤리강령 서약서 징구", "활용계획": "AI 미활용 (명절 기강 확립, 선물 신고, 서약서 징구 등 단순 행정은 기존 방식 유지)", "담당자": "", "에이전트": "", "shift": "", "과제유형": "", "우선순위": "", "AI활용가능": "X", "구현방법": "", "착수상태": "", "목표완료": "", "공식완료일": "", "진척률": 0, "제약사유": "단순 행정적 절차로 AI 도입 실익이 낮아 AI 미활용, 기존 방식 유지", "필요지원": "", "측정유형": "", "AsIs": "", "ToBe": "", "기대효과": "", "측정주기": "", "비고": ""}, {"no": 78, "영역": "Ⅹ. 조직 운영 및 윤리 행정", "프로세스": "10.2 윤리 및 기강", "태스크": "[감사 규정 제개정]\n법률 변경 반영, 감사 규정 최신화 및 정기 제개정 전파·시행일 관리", "활용계획": "[현재] 법률 개정 사항 수기 모니터링 → [AI 활용] '규정 개정 모니터링 에이전트'로 입법센터 API 연동, 법률 변경 자동 수집 및 감사 규정 상충 여부·운영 영향도 자동 평가", "담당자": "이정", "에이전트": "A-01. 대외 동향·규정 모니터링 에이전트", "shift": "SH", "과제유형": "고도화", "우선순위": "상", "AI활용가능": "O", "구현방법": "API연동/sLLM", "착수상태": "착수", "목표완료": "2026 Q3", "공식완료일": "24.04.16", "진척률": 0.7, "제약사유": "-", "필요지원": "API/데이터", "측정유형": "처리시간", "AsIs": "건당 6시간", "ToBe": "건당 3시간 (50% 단축)", "기대효과": "[3시간 단축] 입법센터 API 연동 법률 개정사항 실시간 수집 및 상충 분석 자동화", "측정주기": "수시", "비고": "에이전트 분석 리포트\n(법률 개정 탐지, 규정 상충)"}, {"no": 79, "영역": "Ⅹ. 조직 운영 및 윤리 행정", "프로세스": "10.2 윤리 및 기강", "태스크": "[규정 개정 이력 관리]\n감사 규정 개정 이력 체계적 관리, 변경 사항 추적 및 버전별 비교 관리", "활용계획": "[현재] 감사 규정 개정 이력 수기 관리 → [AI 활용] '규정 이력 관리 AI 에이전트'로 버전별 변경 사항 자동 추적, 비교 분석 및 변경 알림 자동화", "담당자": "이정", "에이전트": "A-01. 대외 동향·규정 모니터링 에이전트", "shift": "S", "과제유형": "신규", "우선순위": "하", "AI활용가능": "O", "구현방법": "API연동/sLLM", "착수상태": "미착수", "목표완료": "2026 Q3", "공식완료일": "", "진척률": 0, "제약사유": "-", "필요지원": "데이터/교육", "측정유형": "커버리지", "AsIs": "수동 관리 50%", "ToBe": "자동 관리 90%", "기대효과": "[관리 커버리지 40%p 확대] 규정 개정 이력 자동 추적 및 체계적 관리", "측정주기": "수시", "비고": "에이전트 분석 리포트\n(이력 추적, 변경 알림)"}, {"no": 80, "영역": "Ⅹ. 조직 운영 및 윤리 행정", "프로세스": "10.2 윤리 및 기강", "태스크": "[부서 일반 행정]\n감사 실적 및 인력 관리, 부서 예산 관리·지출결의서 작성·사무용품 발주", "활용계획": "[현재] 부서 예산 집행 현황 수기 집계 → [AI 활용] BI 대시보드 구축으로 예산 소진율 실시간 시각화, 이상 지출 패턴 자동 탐지 및 알림", "담당자": "이정", "에이전트": "B-05. 부서 행정·예산 관리 에이전트", "shift": "S", "과제유형": "신규", "우선순위": "하", "AI활용가능": "O", "구현방법": "HTML/두레이", "착수상태": "착수", "목표완료": "2026 Q2", "공식완료일": "", "진척률": 0.5, "제약사유": "-", "필요지원": "교육/기술지원", "측정유형": "처리시간", "AsIs": "월 5시간", "ToBe": "월 2시간 (60% 단축)", "기대효과": "[3시간 단축] 예산 대시보드 구축으로 집행 현황 실시간 공유 및 투명성 향상", "측정주기": "월간", "비고": "에이전트 분석 리포트\n(대시보드 조회, 이상 지출)"}];
+
+let data = JSON.parse(JSON.stringify(RAW));
+data.forEach(r => { r._수정일 = null; r._수정ts = null; });
+let changes = {};
+let currentEditNo = null;
+let charts = {};
+
+// ── 스냅샷 뷰 모드 상태 ──────────────────────────
+let liveData = null;          // 라이브 데이터 백업 (스냅샷 진입 시)
+let viewingWeek = null;       // 현재 보고 있는 주차 키 (null = 라이브)
+
+function enterSnapshotMode(weekKey) {
+  const snap = weeklyHistory[weekKey];
+  if (!snap || !Array.isArray(snap.tasks)) {
+    showToast('이 주차는 과제 스냅샷이 없습니다 (집계만 기록됨)');
+    return;
+  }
+  // 라이브 데이터 백업 (최초 진입 시에만)
+  if (viewingWeek === null) liveData = data;
+  viewingWeek = weekKey;
+  data = JSON.parse(JSON.stringify(snap.tasks));
+  document.body.classList.add('snapshot-mode');
+  const banner = document.getElementById('snapshotBanner');
+  if (banner) {
+    banner.style.display = 'flex';
+    document.getElementById('snapshotBannerLabel').textContent =
+      `${snap.label} (${snap.savedAt || ''})`;
+  }
+  highlightWeeklyNav(weekKey);
+  applyFilter();
+  renderDashboard();
+  renderSchedule();
+  renderAgents();
+}
+
+function exitSnapshotMode() {
+  if (viewingWeek === null) return;
+  if (liveData) data = liveData;
+  liveData = null;
+  viewingWeek = null;
+  document.body.classList.remove('snapshot-mode');
+  const banner = document.getElementById('snapshotBanner');
+  if (banner) banner.style.display = 'none';
+  highlightWeeklyNav(null);
+  applyFilter();
+  renderDashboard();
+  renderSchedule();
+  renderAgents();
+}
+
+function highlightWeeklyNav(weekKey) {
+  document.querySelectorAll('#weeklyNav .tab').forEach(el => el.classList.remove('active'));
+  if (weekKey === null) {
+    const live = document.getElementById('weeklyNavLive');
+    if (live) live.classList.add('active');
+  } else {
+    const el = document.querySelector(`#weeklyNav [data-week="${weekKey}"]`);
+    if (el) el.classList.add('active');
+  }
+}
+
+// ── 탭 전환 ──────────────────────────────
+function switchTab(id, el) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  el.classList.add('active');
+  if (id==='dashboard') { renderDashboard(); loadWeeklyHistory(); }
+  if (id==='schedule') renderSchedule();
+  if (id==='agents') renderAgents();
+}
+
+// ── 차트 헬퍼 ────────────────────────────
+function destroyChart(id) { if(charts[id]){charts[id].destroy();delete charts[id];} }
+
+function renderDashboard() {
+  const active = data.filter(d=>d.착수상태);
+  const started = data.filter(d=>d.착수상태==='착수');
+  const notStarted = data.filter(d=>d.착수상태==='미착수');
+  const avg = active.length ? Math.round(active.reduce((s,d)=>s+d.진척률,0)/active.length*100) : 0;
+  const done = data.filter(d=>d.진척률>=1.0 && d.착수상태==='착수');
+  document.getElementById('kpi-started').textContent = started.length;
+  document.getElementById('kpi-not').textContent = notStarted.length;
+  document.getElementById('kpi-avg').textContent = avg+'%';
+  document.getElementById('kpi-started-pct').textContent = Math.round(started.length/active.length*100)+'%';
+  document.getElementById('kpi-done').textContent = done.length;
+  document.getElementById('kpi-done-pct').textContent = active.length ? Math.round(done.length/active.length*100)+'%' : '0%';
+  const official = data.filter(d=>d.공식완료일 && String(d.공식완료일).trim() && String(d.공식완료일).trim() !== '-');
+  document.getElementById('kpi-official').textContent = official.length;
+
+  // 착수 현황 도넛
+  destroyChart('chartStatus');
+  charts['chartStatus'] = new Chart(document.getElementById('chartStatus'), {
+    type:'doughnut',
+    data:{labels:['착수','미착수'],datasets:[{data:[started.length,notStarted.length],backgroundColor:['#6366F1','#E5E7EB'],borderWidth:0,hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'circle',font:{family:"'Pretendard',sans-serif",size:12},color:'#475467',padding:14}}}}
+  });
+
+  // SHIFT 바
+  const shiftMap = {};
+  data.filter(d=>d.shift).forEach(d=>{
+    const s = d.shift||'기타';
+    if(!shiftMap[s]) shiftMap[s]={착수:0,미착수:0};
+    if(d.착수상태==='착수') shiftMap[s].착수++;
+    else if(d.착수상태==='미착수') shiftMap[s].미착수++;
+  });
+  destroyChart('chartShift');
+  charts['chartShift'] = new Chart(document.getElementById('chartShift'), {
+    type:'bar',
+    data:{labels:Object.keys(shiftMap),datasets:[
+      {label:'착수',data:Object.values(shiftMap).map(v=>v.착수),backgroundColor:'#6366F1',borderRadius:6,maxBarThickness:32},
+      {label:'미착수',data:Object.values(shiftMap).map(v=>v.미착수),backgroundColor:'#E5E7EB',borderRadius:6,maxBarThickness:32}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'circle',font:{family:"'Pretendard',sans-serif",size:12},color:'#475467',padding:14}}},scales:{x:{stacked:true,grid:{display:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#98A2B3'}},y:{stacked:true,grid:{color:'#F3F4F6',drawBorder:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#98A2B3'}}}}
+  });
+
+  // 에이전트별 평균 진척률
+  const agMap = {};
+  data.filter(d=>d.에이전트).forEach(d=>{
+    if(!agMap[d.에이전트]) agMap[d.에이전트]=[];
+    agMap[d.에이전트].push(d.진척률);
+  });
+  const agLabels = Object.keys(agMap).map(k=>k.replace(/^[AB]-\d+\.\s*/,''));
+  const agVals = Object.keys(agMap).map(k=>Math.round(agMap[k].reduce((s,v)=>s+v,0)/agMap[k].length*100));
+  destroyChart('chartAgent');
+  const agCount = agLabels.length;
+  const agHeight = Math.max(280, agCount * 28 + 60);
+  document.getElementById('chartAgentWrap').style.height = agHeight + 'px';
+  charts['chartAgent'] = new Chart(document.getElementById('chartAgent'), {
+    type:'bar',
+    data:{labels:agLabels,datasets:[{label:'평균 진척률(%)',data:agVals,backgroundColor:'#6366F1',borderRadius:6,maxBarThickness:18}]},
+    options:{
+      indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},datalabels:{display:false}},
+      layout:{padding:{right:10}},
+      scales:{
+        x:{max:100,grid:{color:'#F3F4F6',drawBorder:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#98A2B3'}},
+        y:{grid:{display:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#475467',mirror:false},afterFit(scale){scale.width=200;}}
+      }
+    }
+  });
+
+  // 우선순위 × 착수상태
+  const pMap = {상:{착수:0,미착수:0},중:{착수:0,미착수:0},하:{착수:0,미착수:0}};
+  data.filter(d=>d.우선순위&&d.착수상태).forEach(d=>{
+    if(pMap[d.우선순위]&&(d.착수상태==='착수'||d.착수상태==='미착수')) pMap[d.우선순위][d.착수상태]++;
+  });
+  destroyChart('chartPriority');
+  charts['chartPriority'] = new Chart(document.getElementById('chartPriority'), {
+    type:'bar',
+    data:{labels:['상','중','하'],datasets:[
+      {label:'착수',data:[pMap.상.착수,pMap.중.착수,pMap.하.착수],backgroundColor:'#6366F1',borderRadius:6,maxBarThickness:36},
+      {label:'미착수',data:[pMap.상.미착수,pMap.중.미착수,pMap.하.미착수],backgroundColor:'#E5E7EB',borderRadius:6,maxBarThickness:36}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'circle',font:{family:"'Pretendard',sans-serif",size:12},color:'#475467',padding:14}}},scales:{x:{stacked:false,grid:{display:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#98A2B3'}},y:{stacked:false,grid:{color:'#F3F4F6',drawBorder:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#98A2B3'}}}}
+  });
+}
+
+function renderSchedule() {
+  const qMap = {};
+  data.filter(d=>d.목표완료).forEach(d=>{
+    const q = d.목표완료;
+    if(!qMap[q]) qMap[q]={착수:0,미착수:0,items:[]};
+    if(d.착수상태==='착수') qMap[q].착수++;
+    else if(d.착수상태==='미착수') qMap[q].미착수++;
+    qMap[q].items.push(d);
+  });
+  const qs = Object.keys(qMap).sort();
+  destroyChart('chartQuarter');
+  charts['chartQuarter'] = new Chart(document.getElementById('chartQuarter'), {
+    type:'bar',
+    data:{labels:qs,datasets:[
+      {label:'착수',data:qs.map(q=>qMap[q].착수),backgroundColor:'#10B981',borderRadius:6,maxBarThickness:40},
+      {label:'미착수',data:qs.map(q=>qMap[q].미착수),backgroundColor:'#E5E7EB',borderRadius:6,maxBarThickness:40}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'circle',font:{family:"'Pretendard',sans-serif",size:12},color:'#475467',padding:14}}},scales:{x:{grid:{display:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#98A2B3'}},y:{grid:{color:'#F3F4F6',drawBorder:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#98A2B3'}}}}
+  });
+
+  // 분기별 목록
+  const listDiv = document.getElementById('quarterList');
+  listDiv.innerHTML = qs.map(q=>`
+    <div style="margin-bottom:18px;">
+      <div style="display:inline-flex;align-items:center;gap:8px;font-weight:700;color:#4F46E5;margin-bottom:10px;padding:6px 14px;background:#EEF2FF;border:1px solid #E0E7FF;border-radius:999px;font-size:12px;">${q} <span style="color:#6366F1;">·</span> <span style="color:#475467;font-weight:600;">${qMap[q].items.length}건</span></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;">
+        ${qMap[q].items.map(it=>`
+          <div style="background:#fff;border:1px solid #EAECF0;border-radius:12px;padding:12px 14px;font-size:11px;cursor:pointer;transition:all .15s;" onclick="goToTask(${it.no})" onmouseover="this.style.boxShadow='0 4px 12px rgba(99,102,241,.12)';this.style.borderColor='#C7D2FE';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='';this.style.borderColor='#EAECF0';this.style.transform=''">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+              <span style="color:#98A2B3;font-weight:600;">No.${it.no}</span>
+              <span class="${it.착수상태==='착수'?'badge-착수':'badge-미착수'}">${it.착수상태||'-'}</span>
+            </div>
+            <div style="color:#101828;font-size:12px;font-weight:500;line-height:1.4;">${it.태스크.split('\n')[0]}</div>
+            <div style="margin-top:6px;color:#475467;">${it.담당자||'-'}</div>
+            <div style="margin-top:8px;color:#6366F1;font-size:10px;font-weight:600;">→ 과제목록에서 보기</div>
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function renderAgents() {
+  const agMap = {};
+  data.filter(d=>d.에이전트).forEach(d=>{
+    if(!agMap[d.에이전트]) agMap[d.에이전트]={items:[],착수:0,미착수:0,진척합:0};
+    agMap[d.에이전트].items.push(d);
+    if(d.착수상태==='착수') agMap[d.에이전트].착수++;
+    else if(d.착수상태==='미착수') agMap[d.에이전트].미착수++;
+    agMap[d.에이전트].진척합+=d.진척률;
+  });
+  const grid = document.getElementById('agentGrid');
+  grid.innerHTML = Object.entries(agMap).sort((a,b)=>a[0].localeCompare(b[0])).map(([name,v])=>{
+    const avg = Math.round(v.진척합/v.items.length*100);
+    return `<div class="agent-card">
+      <h4>${name}</h4>
+      <div class="ag-stat"><span>과제 ${v.items.length}건</span><span>착수 ${v.착수} / 미착수 ${v.미착수}</span></div>
+      <div class="ag-bar-wrap"><div class="ag-bar-fill" style="width:${avg}%"></div></div>
+      <div class="ag-stat"><span>평균 진척률</span><span style="font-weight:700;color:#6366F1;">${avg}%</span></div>
+      <div class="ag-tasks" style="margin-top:6px;">${v.items.slice(0,3).map(it=>`<div style="padding:2px 0;border-bottom:1px solid #f5f5f5;">No.${it.no} ${it.태스크.split('\n')[0].substring(0,25)}...</div>`).join('')}${v.items.length>3?`<div style="color:#aaa;padding-top:2px;">외 ${v.items.length-3}건</div>`:''}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── 과제 목록 ────────────────────────────
+function getPersonList() {
+  const set = new Set();
+  RAW.forEach(r=>{ if(r.담당자) r.담당자.split(',').forEach(p=>set.add(p.trim())); });
+  return [...set].filter(Boolean).sort();
+}
+
+function renderTable(rows) {
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+  rows.forEach(r=>{
+    const isModified = changes[r.no]!==undefined;
+    const pct = Math.round(r.진척률*100);
+    // SHIFT 배지
+    const shiftColors = {S:'#10B981',H:'#0EA5E9',I:'#8B5CF6',T:'#F59E0B',SH:'#6366F1',F:'#64748B'};
+    const shiftBadge = r.shift ? `<span style="background:${shiftColors[r.shift]||'#999'};color:#fff;border-radius:10px;padding:2px 7px;font-size:10px;font-weight:700;">${r.shift}</span>` : '<span style="color:#ccc;font-size:11px;">-</span>';
+    // 우선순위 배지
+    const priorityColors = {'상':'#EF4444','중':'#F59E0B','하':'#94A3B8'};
+    const priorityBadge = r.우선순위 ? `<span style="background:${priorityColors[r.우선순위]||'#999'};color:#fff;border-radius:10px;padding:2px 7px;font-size:10px;font-weight:700;">${r.우선순위}</span>` : '<span style="color:#ccc;font-size:11px;">-</span>';
+    // AI 활용 여부 배지
+    const isAiUse = r.활용계획 && r.활용계획 !== 'AI 미활용' && r.활용계획.trim() !== '';
+    const aiUseBadge = !r.활용계획 || r.활용계획.trim()==='' ? '<span style="color:#ccc;font-size:11px;">-</span>' : isAiUse ? '<span style="background:#e3f2fd;color:#1565c0;border-radius:10px;padding:2px 7px;font-size:10px;font-weight:700;">AI활용</span>' : '<span style="background:#f5f5f5;color:#999;border-radius:10px;padding:2px 7px;font-size:10px;font-weight:700;">미활용</span>';
+    const statusBadge = r.착수상태==='착수'?`<span class="badge-착수">착수</span>`:r.착수상태==='미착수'?`<span class="badge-미착수">미착수</span>`:`<span class="badge-empty">-</span>`;
+    const tr = document.createElement('tr');
+    if(isModified) tr.classList.add('modified');
+    tr.innerHTML = `
+      <td class="cell-no">${r.no}</td>
+      <td class="col-area"><div class="cell-text" style="font-size:11px;color:var(--text-2);font-weight:500;">${r.영역}</div><div class="cell-text" style="font-size:11px;color:var(--text-3);margin-top:2px;">${r.프로세스}</div></td>
+      <td class="col-agent"><div class="cell-text" style="font-size:12px;font-weight:500;">${r.에이전트||'-'}</div></td>
+      <td class="col-task"><div class="cell-text">${r.태스크}</div></td>
+      <td class="col-plan"><div class="cell-text" style="font-size:11px;color:var(--text-2);">${r.활용계획}</div></td>
+      <td class="col-person"><div class="cell-text">${r.담당자||'-'}</div></td>
+      <td class="col-shift col-extra" style="text-align:center;">${shiftBadge}</td>
+      <td class="col-type col-extra" style="text-align:center;"><div class="cell-text" style="font-size:11px;">${r.과제유형||'-'}</div></td>
+      <td class="col-priority col-extra" style="text-align:center;">${priorityBadge}</td>
+      <td class="col-aiuse col-extra" style="text-align:center;">${aiUseBadge}</td>
+      <td class="col-method col-extra"><div class="cell-text" style="font-size:11px;">${r.구현방법||'-'}</div></td>
+      <td class="col-status">${statusBadge}</td>
+      <td class="col-progress"><div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div><div class="progress-pct">${pct}%</div></div></td>
+      <td class="col-target"><div class="cell-text" style="font-size:11px;">${r.목표완료||'-'}</div></td>
+      <td class="col-official col-extra"><div class="cell-text" style="font-size:11px;color:var(--accent);font-weight:600;">${r.공식완료일||'-'}</div></td>
+      <td class="col-constraint col-extra"><div class="cell-text" style="font-size:11px;color:var(--text-3);">${r.제약사유||'-'}</div></td>
+      <td class="col-support col-extra"><div class="cell-text" style="font-size:11px;color:var(--text-3);">${r.필요지원||'-'}</div></td>
+      <td class="col-measure col-extra"><div class="cell-text" style="font-size:11px;">${r.측정유형||'-'}</div></td>
+      <td class="col-asis col-extra"><div class="cell-text" style="font-size:11px;">${r.AsIs||'-'}</div></td>
+      <td class="col-tobe col-extra"><div class="cell-text" style="font-size:11px;">${r.ToBe||'-'}</div></td>
+      <td class="col-effect col-extra"><div class="cell-text" style="font-size:11px;color:var(--info);">${r.기대효과||'-'}</div></td>
+      <td class="col-cycle col-extra"><div class="cell-text" style="font-size:11px;text-align:center;">${r.측정주기||'-'}</div></td>
+      <td class="col-note col-extra"><div class="cell-text" style="font-size:11px;color:var(--text-3);">${r.비고||'-'}</div></td>
+      <td class="col-modified col-extra">${r._수정일 ? `<div class="cell-modified">${r._수정일}</div>` : `<div class="cell-modified-none">-</div>`}</td>
+      <td class="col-action"><button class="btn-edit" onclick="openEdit(${r.no})">✏️ 수정</button></td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('statVisible').textContent = rows.length;
+  document.getElementById('statStart').textContent = rows.filter(r=>r.착수상태==='착수').length;
+  document.getElementById('statNot').textContent = rows.filter(r=>r.착수상태==='미착수').length;
+  const ap = rows.filter(r=>r.착수상태);
+  document.getElementById('statAvg').textContent = ap.length ? Math.round(ap.reduce((s,d)=>s+d.진척률,0)/ap.length*100) : 0;
+}
+
+function applyFilter() {
+  const person = document.getElementById('filterPerson').value;
+  const status = document.getElementById('filterStatus').value;
+  const aiuse = document.getElementById('filterAiUse').value;
+  const target = document.getElementById('filterTarget').value;
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const recent = document.getElementById('filterRecent').value;
+  const now = Date.now();
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
+  renderTable(data.filter(r=>{
+    const recentOk = !recent || (r._수정ts !== null && (now - r._수정ts) <= weekMs);
+    const isAiUse = r.활용계획 && r.활용계획 !== 'AI 미활용' && r.활용계획.trim() !== '';
+    const aiuseOk = !aiuse || (aiuse==='활용' ? isAiUse : !isAiUse);
+    return (!person || (r.담당자&&r.담당자.includes(person)))
+      && (!status || r.착수상태===status)
+      && (!target || r.목표완료===target)
+      && aiuseOk
+      && (!search || r.태스크.toLowerCase().includes(search)||(r.에이전트||'').toLowerCase().includes(search))
+      && recentOk;
+  }));
+}
+
+function resetFilter() {
+  ['filterPerson','filterStatus','filterAiUse','filterTarget','filterRecent'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('searchInput').value='';
+  renderTable(data);
+}
+
+// ── 편집 모달 ────────────────────────────
+// 편집 가능 필드 매핑: data 키 ↔ DOM ID. 진척률은 슬라이더로 별도 처리.
+const EDITABLE_FIELDS = [
+  ['영역','m_area'],['프로세스','m_process'],['에이전트','m_agent'],
+  ['태스크','m_task'],['활용계획','m_plan'],
+  ['담당자','m_person'],['목표완료','m_target'],['공식완료일','m_official'],
+  ['shift','m_shift'],['과제유형','m_type'],['우선순위','m_priority'],
+  ['AI활용가능','m_aiuse'],['구현방법','m_method'],['착수상태','m_status'],
+  ['AsIs','m_asis'],['ToBe','m_tobe'],['기대효과','m_effect'],
+  ['제약사유','m_constraint'],['필요지원','m_support'],
+  ['측정유형','m_measure'],['측정주기','m_cycle'],['비고','m_note']
+];
+
+function openEdit(no) {
+  if (viewingWeek !== null) { showToast('스냅샷 보기 모드에서는 수정할 수 없습니다'); return; }
+  const r = data.find(d=>d.no===no);
+  currentEditNo = no;
+  document.getElementById('modalTitle').textContent = `No.${no} — ${r.에이전트||'항목'} 수정`;
+  EDITABLE_FIELDS.forEach(([key,id])=>{
+    const el = document.getElementById(id);
+    if(el) el.value = r[key]==null ? '' : r[key];
+  });
+  const pct = Math.round((r.진척률||0)*100);
+  document.getElementById('m_progress').value = pct;
+  document.getElementById('m_progress_val').textContent = pct+'%';
+  document.getElementById('m_memo').value = '';
+  document.getElementById('editModal').classList.add('open');
+}
+
+function closeModal() { document.getElementById('editModal').classList.remove('open'); currentEditNo=null; }
+
+function saveEdit() {
+  if(!currentEditNo) return;
+  const idx = data.findIndex(d=>d.no===currentEditNo);
+  const orig = RAW.find(d=>d.no===currentEditNo);
+  const memo = document.getElementById('m_memo').value.trim();
+
+  // 1) 모든 편집 필드 수집 + 변경분 추출
+  const 변경내역 = {};
+  EDITABLE_FIELDS.forEach(([key,id])=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    const newVal = el.value;
+    const oldVal = orig[key]==null ? '' : String(orig[key]);
+    if(newVal !== oldVal) {
+      변경내역[key] = { 이전: oldVal, 이후: newVal };
+    }
+    data[idx][key] = newVal;
+  });
+
+  // 2) 진척률 (0~1 정규화)
+  const newProgress = parseInt(document.getElementById('m_progress').value)/100;
+  const oldProgress = orig.진척률 || 0;
+  if(newProgress !== oldProgress) {
+    변경내역['진척률'] = { 이전: Math.round(oldProgress*100)+'%', 이후: Math.round(newProgress*100)+'%' };
+  }
+  data[idx].진척률 = newProgress;
+
+  // 3) 수정 타임스탬프
+  const nowTs = new Date();
+  data[idx]._수정ts = nowTs.getTime();
+  data[idx]._수정일 = nowTs.toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'}) + ' ' + nowTs.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+
+  // 4) 변경분 또는 메모가 있으면 로그 기록
+  const hasChange = Object.keys(변경내역).length > 0;
+  if(hasChange || memo) {
+    changes[currentEditNo] = {
+      no: currentEditNo,
+      수정시각: nowTs.toLocaleString('ko-KR'),
+      변경내역: 변경내역,
+      메모: memo,
+      현재값: { ...data[idx] }
+    };
+  } else {
+    delete changes[currentEditNo];
+  }
+
+  closeModal(); applyFilter(); updateLog();
+  showToast(`No.${currentEditNo} 저장됨${hasChange?` · ${Object.keys(변경내역).length}개 항목 변경`:memo?' · 메모 기록':''}`);
+
+  // 5) Firebase 자동저장
+  if (typeof window._firebaseAutoSave === 'function') {
+    window._firebaseAutoSave(data[idx].no, data[idx]);
+  } else {
+    document.getElementById('lastSave').textContent = nowTs.toLocaleString('ko-KR');
+  }
+}
+
+// ── 컬럼 모드 토글 (compact ↔ wide) ─────────
+function toggleColumns() {
+  const wrap = document.getElementById('tableWrap');
+  const sw = document.getElementById('colSwitch');
+  if(wrap.classList.contains('compact')) {
+    wrap.classList.remove('compact'); wrap.classList.add('wide');
+    sw.classList.add('on'); sw.setAttribute('aria-checked','true');
+  } else {
+    wrap.classList.remove('wide'); wrap.classList.add('compact');
+    sw.classList.remove('on'); sw.setAttribute('aria-checked','false');
+  }
+}
+
+
+// ── 변경 로그 ────────────────────────────
+const FIELD_LABELS = {
+  영역:'업무영역', 프로세스:'프로세스', 에이전트:'에이전트', 태스크:'세부태스크',
+  활용계획:'AI 활용계획', 담당자:'담당자', 목표완료:'목표완료', 공식완료일:'공식완료일',
+  shift:'SHIFT', 과제유형:'과제유형', 우선순위:'우선순위', AI활용가능:'AI활용가능',
+  구현방법:'구현방법', 착수상태:'착수상태', 진척률:'진척률',
+  AsIs:'As-Is', ToBe:'To-Be', 기대효과:'기대효과',
+  제약사유:'제약사유', 필요지원:'필요지원', 측정유형:'측정유형', 측정주기:'측정주기', 비고:'비고'
+};
+
+function updateLog() {
+  const wrap = document.getElementById('logWrap');
+  const empty = document.getElementById('logEmpty');
+  const cnt = Object.keys(changes).length;
+  empty.style.display = cnt===0?'block':'none';
+  const existing = wrap.querySelectorAll('.log-item');
+  existing.forEach(e=>e.remove());
+  Object.values(changes).reverse().forEach(c=>{
+    const div = document.createElement('div');
+    div.className = 'log-item';
+    const chg = c.변경내역 || {};
+    const fieldRows = Object.entries(chg).filter(([k,v])=>v.이전!==v.이후).map(([k,v])=>`
+      <div class="log-row"><span class="log-field">${FIELD_LABELS[k]||k}</span><span class="log-before">${String(v.이전||'').substring(0,80)}</span><span class="log-after">${String(v.이후||'').substring(0,80)}</span></div>`).join('');
+    const noFields = fieldRows.length===0 ? `<div style="font-size:11px;color:var(--text-3);font-style:italic;padding:4px 0;">필드 변경 없음 · 메모만 기록</div>` : '';
+    div.innerHTML = `
+      <div class="log-header"><span class="log-no">No.${c.no}</span><span class="log-time">${c.수정시각}</span></div>
+      ${fieldRows}${noFields}
+      ${c.메모?`<div class="log-memo">메모: ${c.메모}</div>`:''}`;
+    wrap.appendChild(div);
+  });
+}
+
+// ── 주차별 자동 이력 관리 ────────────────────────────
+function getWeekLabel(d) {
+  d = d || new Date();
+  const year = d.getFullYear();
+  const month = d.getMonth() + 1;
+  const firstDay = new Date(year, d.getMonth(), 1).getDay();
+  const week = Math.ceil((d.getDate() + firstDay) / 7);
+  return year + '년 ' + month + '월 ' + week + '주차';
+}
+
+function getWeekKey(d) {
+  d = d || new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth()+1).padStart(2,'0');
+  const firstDay = new Date(year, d.getMonth(), 1).getDay();
+  const week = Math.ceil((d.getDate() + firstDay) / 7);
+  return year + '_' + month + '_W' + week;
+}
+
+// 임의 일자가 속한 주의 월요일(00:00)
+function getMondayOf(d) {
+  const x = new Date(d);
+  const day = x.getDay(); // 0=일, 1=월 ...
+  const diff = (day === 0) ? -6 : 1 - day;
+  x.setDate(x.getDate() + diff);
+  x.setHours(0,0,0,0);
+  return x;
+}
+
+// 임의 일자가 속한 주의 금요일 12:00
+function getFridayNoonOf(d) {
+  const mon = getMondayOf(d);
+  const fri = new Date(mon);
+  fri.setDate(mon.getDate() + 4);
+  fri.setHours(12,0,0,0);
+  return fri;
+}
+
+// "2026.5.1 (금) 12:00" 같은 표시
+function formatFridayNoon(fri) {
+  return fri.getFullYear() + '.' + (fri.getMonth()+1) + '.' + fri.getDate() + ' (금) 12:00';
+}
+
+let weeklyHistory = {};
+
+// 페이지 로드 시: Firebase에서 기존 이력 가져온 뒤
+//   - 이번 주 금요일 12:00 이후 + 미기록 → 1회만 기록 (savedAt = 금 12:00 고정)
+//   - 그 외에는 기록하지 않음 (다음 금요일 안내)
+function autoRecordWeekly() {
+  const now = new Date();
+  const monday = getMondayOf(now);
+  const fridayNoon = getFridayNoonOf(now);
+  const key = getWeekKey(monday);
+  const label = getWeekLabel(monday);
+  const tag = document.getElementById('weeklyAutoTag');
+
+  const setTag = (msg) => { if(tag) tag.textContent = msg; };
+
+  const proceed = (remote) => {
+    if (remote) weeklyHistory = {...remote};
+
+    const alreadyRecorded = !!weeklyHistory[key];
+    const passedFridayNoon = now.getTime() >= fridayNoon.getTime();
+
+    if (passedFridayNoon && !alreadyRecorded) {
+      // 금요일 12:00 지났고 아직 기록 없음 → 기록
+      const active = data.filter(d=>d.착수상태);
+      const started = data.filter(d=>d.착수상태==='착수');
+      const notStarted = data.filter(d=>d.착수상태==='미착수');
+      const done = data.filter(d=>d.진척률>=1.0 && d.착수상태==='착수');
+      const avg = active.length ? Math.round(active.reduce((s,d)=>s+d.진척률,0)/active.length*100) : 0;
+      const record = {
+        label,
+        착수: started.length,
+        미착수: notStarted.length,
+        평균진척률: avg,
+        완료: done.length,
+        완료율: active.length ? Math.round(done.length/active.length*100) : 0,
+        savedAt: fridayNoon.toLocaleString('ko-KR'),
+        anchorAt: fridayNoon.getTime(),
+        tasks: JSON.parse(JSON.stringify(data))
+      };
+      weeklyHistory[key] = record;
+
+      // Firebase 저장
+      try {
+        const updates = {};
+        updates['okh_audit/weekly/' + key] = record;
+        import("https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js")
+          .then(({getDatabase, ref, update}) => {
+            if (window._fbApp) {
+              const db = getDatabase(window._fbApp);
+              update(ref(db), updates)
+                .then(() => setTag(label + ' 자동 기록됨 ✓ · ' + formatFridayNoon(fridayNoon)))
+                .catch(()=>{});
+            }
+          }).catch(()=>{});
+      } catch(e) {}
+      setTag(label + ' 자동 기록됨 ✓ · ' + formatFridayNoon(fridayNoon));
+    } else if (alreadyRecorded) {
+      setTag(label + ' 기록 완료 · ' + (weeklyHistory[key].savedAt || formatFridayNoon(fridayNoon)));
+    } else {
+      // 아직 금요일 12:00 전 — 다음 자동 기록 시점 안내
+      setTag('다음 자동 기록: ' + formatFridayNoon(fridayNoon));
+    }
+    renderWeeklyChart();
+  };
+
+  // Firebase에서 기존 이력 가져오기
+  try {
+    import("https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js")
+      .then(({getDatabase, ref, onValue}) => {
+        if (window._fbApp) {
+          const db = getDatabase(window._fbApp);
+          onValue(ref(db, 'okh_audit/weekly'), (snap) => {
+            proceed(snap.val());
+          }, {onlyOnce: true});
+        } else {
+          proceed(null);
+        }
+      }).catch(()=>proceed(null));
+  } catch(e) { proceed(null); }
+}
+
+function loadWeeklyHistory() {
+  autoRecordWeekly();
+}
+
+function renderWeeklyNav() {
+  const nav = document.getElementById('weeklyNav');
+  if (!nav) return;
+  const keys = Object.keys(weeklyHistory).sort().reverse();
+  // 라이브 항목은 유지하고, 그 아래에 주차 목록 갱신
+  const liveHtml = `<div class="tab ${viewingWeek===null?'active':''}" onclick="exitSnapshotMode()" id="weeklyNavLive"><span class="ico">🟢</span><span>현재 (Live)</span></div>`;
+  const items = keys.map(k => {
+    const s = weeklyHistory[k];
+    const hasSnapshot = Array.isArray(s.tasks);
+    const icon = hasSnapshot ? '📌' : '📊';
+    const isActive = viewingWeek === k;
+    return `<div class="tab ${isActive?'active':''}" data-week="${k}" onclick="enterSnapshotMode('${k}')" title="${hasSnapshot?'클릭하여 스냅샷 보기':'집계만 기록됨 (스냅샷 없음)'}"><span class="ico">${icon}</span><span style="flex:1;">${s.label}</span><span style="font-size:10px;color:var(--text-3);">${s.평균진척률}%</span></div>`;
+  }).join('');
+  nav.innerHTML = liveHtml + items;
+}
+
+function renderWeeklyChart() {
+  renderWeeklyNav();
+  const keys = Object.keys(weeklyHistory).sort().reverse(); // 최신 주차가 위로
+  const el = document.getElementById('weeklyTable');
+  if (!el) return;
+  if (keys.length === 0) {
+    el.innerHTML = '<div style="color:#aaa;padding:16px;font-size:12px;">이번 주 데이터 기록 중...</div>';
+    return;
+  }
+  const items = keys.map((k, i) => {
+    const s = weeklyHistory[k];
+    const isLatest = i === 0;
+    return `<div style="display:flex;align-items:center;gap:0;padding:12px 14px;border-bottom:1px solid #EAECF0;background:${isLatest?'#EEF2FF':'#fff'};${isLatest?'border-left:3px solid #6366F1;':'border-left:3px solid transparent;'}">
+      <div style="width:130px;font-weight:${isLatest?'700':'500'};font-size:12px;color:#101828;">
+        ${s.label}${isLatest?' <span style="font-size:10px;color:#6366F1;">●</span>':''}
+      </div>
+      <div style="flex:1;display:flex;gap:24px;flex-wrap:wrap;">
+        <span style="font-size:12px;color:#475467;">착수 <strong style="color:#10B981;">${s.착수}건</strong></span>
+        <span style="font-size:12px;color:#555;">미착수 <strong style="color:#888;">${s.미착수}건</strong></span>
+        <span style="font-size:12px;color:#475467;">평균진척률 <strong style="color:#6366F1;">${s.평균진척률}%</strong></span>
+        <span style="font-size:12px;color:#555;">완료 <strong style="color:#4caf50;">${s.완료}건 (${s.완료율}%)</strong></span>
+      </div>
+      <div style="font-size:10px;color:#ccc;white-space:nowrap;">${s.savedAt||''}</div>
+    </div>`;
+  }).join('');
+  el.innerHTML = `<div style="border:1px solid #eee;border-radius:6px;overflow:hidden;">${items}</div>`;
+}
+
+// ── 엑셀 다운로드 ────────────────────────────
+function downloadExcel() {
+  const person = document.getElementById('filterPerson').value;
+  const status = document.getElementById('filterStatus').value;
+  const target = document.getElementById('filterTarget').value;
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const recent = document.getElementById('filterRecent').value;
+  const now = Date.now();
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
+  const rows = data.filter(r=>{
+    const recentOk = !recent || (r._수정ts !== null && (now - r._수정ts) <= weekMs);
+    return (!person || (r.담당자&&r.담당자.includes(person)))
+      && (!status || r.착수상태===status)
+      && (!target || r.목표완료===target)
+      && (!search || r.태스크.toLowerCase().includes(search)||(r.에이전트||'').toLowerCase().includes(search))
+      && recentOk;
+  });
+
+  const wsData = [
+    ['No', '업무영역', '프로세스', '에이전트명', '세부태스크', 'AI 활용계획', '담당자', 'SHIFT', '과제유형', '우선순위', 'AI활용가능', '구현방법', '착수상태', '진척률(%)', '목표완료', '공식완료일', '제약사유', '필요지원', '측정유형', 'As-Is', 'To-Be', '기대효과', '측정주기', '비고', '최근수정']
+  ];
+  rows.forEach(r => {
+    wsData.push([
+      r.no, r.영역||'', r.프로세스||'', r.에이전트||'', r.태스크||'',
+      r.활용계획||'', r.담당자||'', r.shift||'', r.과제유형||'', r.우선순위||'',
+      r.AI활용가능||'', r.구현방법||'', r.착수상태||'', Math.round(r.진척률*100), r.목표완료||'',
+      r.공식완료일||'', r.제약사유||'', r.필요지원||'', r.측정유형||'', r.AsIs||'', r.ToBe||'',
+      r.기대효과||'', r.측정주기||'', r.비고||'', r._수정일||''
+    ]);
+  });
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [
+    {wch:5},{wch:25},{wch:20},{wch:30},{wch:45},{wch:60},
+    {wch:12},{wch:8},{wch:10},{wch:8},{wch:12},{wch:15},
+    {wch:8},{wch:10},{wch:10},{wch:12},{wch:15},{wch:15},{wch:10},
+    {wch:20},{wch:20},{wch:40},{wch:10},{wch:20},{wch:14}
+  ];
+  XLSX.utils.book_append_sheet(wb, ws, '과제목록');
+  const d = new Date();
+  const ds = d.getFullYear()+''+String(d.getMonth()+1).padStart(2,'0')+''+String(d.getDate()).padStart(2,'0');
+  XLSX.writeFile(wb, 'OKH감사부_AI활용계획_'+ds+'.xlsx');
+  showToast('엑셀 다운로드 완료 ('+rows.length+'건)');
+}
+
+// ── 목표완료 일정 → 과제목록 이동 ────────────────────────────
+function goToTask(no) {
+  const tabs = document.querySelectorAll('.tab');
+  // 과제 목록 탭은 3번째(index 2)
+  switchTab('tasklist', tabs[2]);
+  setTimeout(() => {
+    resetFilter();
+    setTimeout(() => {
+      const tbody = document.getElementById('tableBody');
+      const rows = tbody.querySelectorAll('tr');
+      rows.forEach(tr => {
+        const noCell = tr.querySelector('.cell-no');
+        if (noCell && parseInt(noCell.textContent) === no) {
+          tr.style.background = '#EEF2FF';
+          tr.style.outline = '2px solid #6366F1';
+          tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setTimeout(() => { tr.style.background=''; tr.style.outline=''; }, 3000);
+        }
+      });
+      showToast('No.'+no+' 항목으로 이동함');
+    }, 50);
+  }, 100);
+}
+
+// ── 내보내기 ────────────────────────────
+function downloadJSON(obj,filename) {
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(obj,null,2)],{type:'application/json'})); a.download=filename; a.click();
+}
+function dateStr(){const d=new Date();return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;}
+
+function showToast(msg) {
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2000);
+}
+
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();}});
+
+// ── 초기화 ───────────────────────────────
+// Firebase 수신 데이터 → 로컬 data 반영
+window._applyRemoteData = function(remote) {
+  // 스냅샷 모드 중이면 라이브 백업(liveData)을 갱신하고 화면은 덮어쓰지 않음
+  const target = viewingWeek !== null && liveData ? liveData : data;
+  Object.entries(remote).forEach(([key, val]) => {
+    const idx = target.findIndex(d => d.no === Number(key));
+    if (idx === -1) return;
+    ['태스크','활용계획','착수상태','목표완료','공식완료일','_수정일','_수정ts'].forEach(field => {
+      if (val[field] !== undefined) target[idx][field] = val[field];
+    });
+    // 진척률은 숫자 보장 (Firebase 저장 시 float 유지)
+    if (val['진척률'] !== undefined) target[idx]['진척률'] = parseFloat(val['진척률']) || 0;
+  });
+  if (viewingWeek === null) applyFilter();
+};
+window._dashData = data;
+
+function init() {
+  const sel = document.getElementById('filterPerson');
+  getPersonList().forEach(p=>{ const o=document.createElement('option'); o.value=p; o.textContent=p; sel.appendChild(o); });
+  // 목표완료 옵션 채우기
+  const tsel = document.getElementById('filterTarget');
+  if (tsel) {
+    const targets = [...new Set(RAW.map(r=>r.목표완료).filter(Boolean))].sort();
+    targets.forEach(t=>{ const o=document.createElement('option'); o.value=t; o.textContent=t; tsel.appendChild(o); });
+  }
+  renderTable(data);
+  renderDashboard();
+  loadWeeklyHistory();
+}
+init();
+</script>
+</body>
+</html>

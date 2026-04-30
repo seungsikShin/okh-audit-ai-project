@@ -1,0 +1,329 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OKH 감사부 AI 활용계획 통합 대시보드</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script type="module" src="firebase.js"></script>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo">N</div>
+      <div class="brand-text">
+        <span class="name">Nexus Audit</span>
+        <span class="org">OKH 감사부</span>
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Workspace</div>
+      <div class="nav">
+        <div class="tab active" onclick="switchTab('dashboard',this)"><span class="ico">📊</span><span>대시보드</span></div>
+        <div class="tab" onclick="switchTab('schedule',this)"><span class="ico">📅</span><span>목표완료 일정</span></div>
+        <div class="tab" onclick="switchTab('tasklist',this)"><span class="ico">📋</span><span>과제 목록</span></div>
+        <div class="tab" onclick="switchTab('agents',this)"><span class="ico">🤖</span><span>에이전트별</span></div>
+        <div class="tab" onclick="switchTab('changelog',this)"><span class="ico">📝</span><span>변경 로그</span></div>
+      </div>
+    </div>
+    <div class="nav-section" id="weeklyNavSection">
+      <div class="nav-label">진척 이력</div>
+      <div class="nav" id="weeklyNav" style="max-height:240px;overflow-y:auto;">
+        <div class="tab active" onclick="exitSnapshotMode(this)" id="weeklyNavLive"><span class="ico">🟢</span><span>현재 (Live)</span></div>
+      </div>
+    </div>
+    <div class="foot">
+      <div class="user-card">
+        <div class="user-avatar">감</div>
+        <div class="user-info">
+          <span class="nm">감사부 팀원</span>
+          <span class="role">2026년 4월 5주차</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="page-title">
+        <h1>AI 활용계획 통합 대시보드</h1>
+        <div class="sub">2026년 4월 5주차 · 전체 80개 과제 · 팀원 편집 + 현황 시각화</div>
+      </div>
+      <div class="topbar-right">
+        <div class="tb-search">
+          <span style="color:var(--text-3);font-size:13px;">🔍</span>
+          <input type="text" placeholder="과제·에이전트 검색..." oninput="(function(v){var s=document.getElementById('searchInput');if(s){s.value=v;applyFilter();}})(this.value)">
+        </div>
+        <div class="save-indicator"><span class="save-dot" id="saveDot"></span><span id="saveStatus">Firebase 연결 대기중</span></div>
+        <div class="tb-icon-btn" title="알림">🔔</div>
+      </div>
+    </header>
+
+    <div id="snapshotBanner" style="display:none;background:linear-gradient(90deg,#FEF3C7,#FDE68A);border-bottom:1px solid #F59E0B;padding:10px 24px;display:none;align-items:center;justify-content:space-between;">
+      <div style="font-size:13px;color:#92400E;font-weight:600;">📌 <span id="snapshotBannerLabel"></span> 스냅샷을 보고 있습니다 (읽기 전용)</div>
+      <button onclick="exitSnapshotMode()" style="background:#F59E0B;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;">현재로 돌아가기</button>
+    </div>
+
+    <div class="page">
+
+<!-- ① 대시보드 탭 -->
+<div id="tab-dashboard" class="tab-content active">
+  <div class="kpi-row" style="grid-template-columns:repeat(6,minmax(0,1fr));">
+    <div class="kpi-card"><div class="val" id="kpi-total">80</div><div class="lbl">전체 과제</div></div>
+    <div class="kpi-card"><div class="val" id="kpi-started">0</div><div class="lbl">착수 건</div><div class="sub-val" id="kpi-started-pct"></div></div>
+    <div class="kpi-card"><div class="val" id="kpi-not">0</div><div class="lbl">미착수 건</div></div>
+    <div class="kpi-card"><div class="val" id="kpi-avg">0%</div><div class="lbl">평균 진척률</div></div>
+    <div class="kpi-card"><div class="val" id="kpi-done">0</div><div class="lbl">완료 건</div><div class="sub-val" id="kpi-done-pct"></div><div class="lbl" style="margin-top:8px;border-top:1px solid var(--border);padding-top:6px;">공식완료 <span id="kpi-official" style="color:var(--accent);font-weight:700;">0</span>건</div></div>
+    <div class="kpi-card"><div class="val">19</div><div class="lbl">AI 에이전트 수</div></div>
+  </div>
+  <div class="chart-grid">
+    <div class="chart-card"><h3>착수 현황</h3><div class="chart-wrap" style="height:220px"><canvas id="chartStatus"></canvas></div></div>
+    <div class="chart-card"><h3>SHIFT 유형별 현황</h3><div class="chart-wrap" style="height:220px"><canvas id="chartShift"></canvas></div></div>
+    <div class="chart-card full"><h3>에이전트별 평균 진척률</h3><div class="chart-wrap" id="chartAgentWrap" style="height:280px"><canvas id="chartAgent"></canvas></div></div>
+    <div class="chart-card full"><h3>우선순위 × 착수상태</h3><div class="chart-wrap" style="height:200px"><canvas id="chartPriority"></canvas></div></div>
+    <div class="chart-card full">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h3 style="margin:0;">📋 주차별 진척 이력</h3>
+        <span id="weeklyAutoTag" style="font-size:11px;color:#aaa;"></span>
+      </div>
+      <div id="weeklyTable"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ② 목표완료 일정 탭 -->
+<div id="tab-schedule" class="tab-content">
+  <div class="chart-grid" style="padding-top:16px;">
+    <div class="chart-card full"><h3>분기별 목표완료 과제 수 (착수상태별)</h3><div class="chart-wrap" style="height:300px"><canvas id="chartQuarter"></canvas></div></div>
+    <div class="chart-card full"><h3>목표완료 시기별 과제 목록</h3><div id="quarterList"></div></div>
+  </div>
+</div>
+
+<!-- ③ 과제 목록 탭 -->
+<div id="tab-tasklist" class="tab-content">
+  <div class="task-sticky-shell" id="taskStickyShell">
+  <div class="toolbar">
+    <label>담당자</label>
+    <select id="filterPerson" onchange="applyFilter()"><option value="">전체</option></select>
+    <label>착수상태</label>
+    <select id="filterStatus" onchange="applyFilter()">
+      <option value="">전체</option><option value="착수">착수</option><option value="미착수">미착수</option>
+    </select>
+    <label>AI활용</label>
+    <select id="filterAiUse" onchange="applyFilter()">
+      <option value="">전체</option><option value="활용">AI 활용</option><option value="미활용">AI 미활용</option>
+    </select>
+    <label>목표완료</label>
+    <select id="filterTarget" onchange="applyFilter()">
+      <option value="">전체</option>
+    </select>
+    <label>검색</label>
+    <input type="text" id="searchInput" placeholder="태스크·에이전트명 검색" style="width:180px" oninput="applyFilter()">
+    <label>최근수정</label>
+    <select id="filterRecent" onchange="applyFilter()">
+      <option value="">전체</option>
+      <option value="7">최근 1주일</option>
+    </select>
+    <button class="btn btn-outline" onclick="resetFilter()">초기화</button>
+    <button class="btn btn-orange" onclick="downloadExcel()">📥 엑셀 다운로드</button>
+    <div class="col-toggle">
+      <span>전체 컬럼</span>
+      <div id="colSwitch" class="switch" onclick="toggleColumns()" role="switch" aria-checked="false" title="전체 컬럼 보기 (가로 스크롤)"></div>
+    </div>
+    <div style="font-size:11px;color:var(--text-3);">마지막 저장: <span id="lastSave">-</span></div>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-chip">표시 <span id="statVisible">0</span>건</div>
+    <div class="stat-chip">착수 <span id="statStart">0</span>건</div>
+    <div class="stat-chip">미착수 <span id="statNot">0</span>건</div>
+    <div class="stat-chip">평균 진척률 <span id="statAvg">0</span>%</div>
+  </div>
+  <div class="floating-table-head compact" id="floatingTableHead" aria-hidden="true">
+    <div class="head-row">
+      <div class="head-cell col-no">No</div>
+      <div class="head-cell col-area">업무영역/프로세스</div>
+      <div class="head-cell col-agent">에이전트명</div>
+      <div class="head-cell col-task">세부태스크</div>
+      <div class="head-cell col-plan">AI 활용계획</div>
+      <div class="head-cell col-person">담당자</div>
+      <div class="head-cell col-shift col-extra">SHIFT</div>
+      <div class="head-cell col-type col-extra">과제유형</div>
+      <div class="head-cell col-priority col-extra">우선순위</div>
+      <div class="head-cell col-aiuse col-extra">AI활용</div>
+      <div class="head-cell col-method col-extra">구현방법</div>
+      <div class="head-cell col-status">착수상태</div>
+      <div class="head-cell col-progress">진척률</div>
+      <div class="head-cell col-target">목표완료</div>
+      <div class="head-cell col-official col-extra">공식완료일</div>
+      <div class="head-cell col-constraint col-extra">제약사유</div>
+      <div class="head-cell col-support col-extra">필요지원</div>
+      <div class="head-cell col-measure col-extra">측정유형</div>
+      <div class="head-cell col-asis col-extra">As-Is</div>
+      <div class="head-cell col-tobe col-extra">To-Be</div>
+      <div class="head-cell col-effect col-extra">기대효과</div>
+      <div class="head-cell col-cycle col-extra">측정주기</div>
+      <div class="head-cell col-note col-extra">비고</div>
+      <div class="head-cell col-modified col-extra">최근수정</div>
+      <div class="head-cell col-action">수정</div>
+    </div>
+  </div>
+  </div>
+  <div class="table-wrap compact" id="tableWrap">
+    <table id="mainTable">
+      <thead><tr>
+        <th class="col-no">No</th>
+        <th class="col-area">업무영역/프로세스</th>
+        <th class="col-agent">에이전트명</th>
+        <th class="col-task">세부태스크</th>
+        <th class="col-plan">AI 활용계획</th>
+        <th class="col-person">담당자</th>
+        <th class="col-shift col-extra">SHIFT</th>
+        <th class="col-type col-extra">과제유형</th>
+        <th class="col-priority col-extra">우선순위</th>
+        <th class="col-aiuse col-extra">AI활용</th>
+        <th class="col-method col-extra">구현방법</th>
+        <th class="col-status">착수상태</th>
+        <th class="col-progress">진척률</th>
+        <th class="col-target">목표완료</th>
+        <th class="col-official col-extra">공식완료일</th>
+        <th class="col-constraint col-extra">제약사유</th>
+        <th class="col-support col-extra">필요지원</th>
+        <th class="col-measure col-extra">측정유형</th>
+        <th class="col-asis col-extra">As-Is</th>
+        <th class="col-tobe col-extra">To-Be</th>
+        <th class="col-effect col-extra">기대효과</th>
+        <th class="col-cycle col-extra">측정주기</th>
+        <th class="col-note col-extra">비고</th>
+        <th class="col-modified col-extra">최근수정</th>
+        <th class="col-action">수정</th>
+      </tr></thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ④ 에이전트별 탭 -->
+<div id="tab-agents" class="tab-content">
+  <div class="agent-grid" id="agentGrid"></div>
+</div>
+
+<!-- ⑤ 변경 로그 탭 -->
+<div id="tab-changelog" class="tab-content">
+  <div class="log-wrap" id="logWrap">
+    <div class="log-empty" id="logEmpty">아직 변경된 항목이 없습니다.<br>과제 목록 탭에서 수정하면 여기에 기록됩니다.</div>
+  </div>
+</div>
+
+    </div><!-- /.page -->
+  </div><!-- /.main -->
+</div><!-- /.app -->
+
+<!-- 편집 모달 -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle">항목 수정</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>업무영역</label><input type="text" id="m_area"></div>
+        <div class="form-group"><label>프로세스</label><input type="text" id="m_process"></div>
+      </div>
+      <div class="form-group"><label>에이전트명</label><input type="text" id="m_agent"></div>
+      <div class="form-group"><label>세부태스크</label><textarea id="m_task" rows="3"></textarea></div>
+      <div class="form-group"><label>AI 활용계획</label><textarea id="m_plan" rows="4"></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label>담당자</label><input type="text" id="m_person"></div>
+        <div class="form-group"><label>목표완료</label><input type="text" id="m_target" placeholder="예: 2026 Q3"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>공식완료일</label><input type="text" id="m_official" placeholder="예: 26.07.31"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>SHIFT</label>
+          <select id="m_shift">
+            <option value="">-</option>
+            <option value="S">S (대체)</option>
+            <option value="H">H (강화)</option>
+            <option value="I">I (혁신)</option>
+            <option value="T">T (전환)</option>
+            <option value="SH">SH (대체+강화)</option>
+            <option value="F">F (미래)</option>
+          </select>
+        </div>
+        <div class="form-group"><label>과제유형</label>
+          <select id="m_type">
+            <option value="">-</option>
+            <option value="신규">신규</option>
+            <option value="고도화">고도화</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>우선순위</label>
+          <select id="m_priority">
+            <option value="">-</option>
+            <option value="상">상</option>
+            <option value="중">중</option>
+            <option value="하">하</option>
+          </select>
+        </div>
+        <div class="form-group"><label>AI활용가능</label>
+          <select id="m_aiuse">
+            <option value="">-</option>
+            <option value="O">O (활용)</option>
+            <option value="X">X (미활용)</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>착수상태</label>
+          <select id="m_status">
+            <option value="">-</option>
+            <option value="착수">착수</option>
+            <option value="미착수">미착수</option>
+          </select>
+        </div>
+        <div class="form-group"><label>구현방법</label><input type="text" id="m_method" placeholder="예: 에이전트/API"></div>
+      </div>
+      <div class="form-group"><label>진척률</label>
+        <div class="slider-wrap">
+          <input type="range" id="m_progress" min="0" max="100" step="5" oninput="document.getElementById('m_progress_val').textContent=this.value+'%'">
+          <div class="slider-val" id="m_progress_val">0%</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>As-Is</label><textarea id="m_asis" rows="2"></textarea></div>
+        <div class="form-group"><label>To-Be</label><textarea id="m_tobe" rows="2"></textarea></div>
+      </div>
+      <div class="form-group"><label>기대효과</label><textarea id="m_effect" rows="2"></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label>제약사유</label><textarea id="m_constraint" rows="2"></textarea></div>
+        <div class="form-group"><label>필요지원</label><input type="text" id="m_support"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>측정유형</label><input type="text" id="m_measure"></div>
+        <div class="form-group"><label>측정주기</label><input type="text" id="m_cycle"></div>
+      </div>
+      <div class="form-group"><label>비고</label><textarea id="m_note" rows="2"></textarea></div>
+      <div class="form-group"><label>메모 (이번 변경 사유 · 변경 로그에 기록됨)</label><textarea id="m_memo" rows="2" placeholder="예: 일정 지연 사유, 우선순위 조정 사유 등"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveEdit()">저장</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="toast" id="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>

@@ -215,6 +215,14 @@
 
 <!-- ⑤ 변경 로그 탭 -->
 <div id="tab-changelog" class="tab-content">
+  <div class="toolbar" style="margin-bottom:16px;">
+    <label>기간</label>
+    <select id="filterLogRecent" onchange="updateLog()">
+      <option value="">전체</option>
+      <option value="7">최근 1주일</option>
+    </select>
+    <div style="margin-left:auto;font-size:12px;color:var(--text-2);">총 <span id="logCount">0</span>건의 변경 이력</div>
+  </div>
   <div class="log-wrap" id="logWrap">
     <div class="log-empty" id="logEmpty">아직 변경된 항목이 없습니다.<br>과제 목록 탭에서 수정하면 여기에 기록됩니다.</div>
   </div>

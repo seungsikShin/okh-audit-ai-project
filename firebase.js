@@ -2,7 +2,7 @@
 //  Firebase 설정 — 배포 전 아래 값을 실제 프로젝트 값으로 교체
 // ══════════════════════════════════════════════════
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
-import { getDatabase, ref, onValue, update, serverTimestamp }
+import { getDatabase, ref, onValue, update, push, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js";
 
 const FIREBASE_CONFIG = {
@@ -15,7 +15,8 @@ const FIREBASE_CONFIG = {
   appId:             "1:763599271245:web:73aeef5cdb6e07b5ca3304"
 };
 
-const DB_PATH = "okh_audit/tasks";   // Realtime Database 경로
+const DB_PATH  = "okh_audit/tasks";     // Realtime Database 경로
+const LOG_PATH = "okh_audit/changelog"; // 변경 로그 경로
 
 // ── 초기화
 const app = initializeApp(FIREBASE_CONFIG);
@@ -67,8 +68,27 @@ window._uploadAll = function() {
   update(ref(db), batch).then(() => console.log('전체 업로드 완료')).catch(console.error);
 };
 
-// ── 전역 노출
-// (autoSave, listenDB 이미 window에 직접 할당됨)
+// ── 변경 로그 1건 저장 (push로 누적)
+window._firebaseSaveLog = function saveLog(entry) {
+  push(ref(db, LOG_PATH), { ...entry, _savedAt: serverTimestamp() })
+    .catch(err => console.error('로그 저장 실패:', err));
+};
+
+// ── 변경 로그 실시간 수신 → app.js의 _applyRemoteLog 호출
+window._firebaseListenLog = function listenLog() {
+  onValue(ref(db, LOG_PATH), (snapshot) => {
+    const raw = snapshot.val();
+    const logs = raw
+      ? Object.values(raw).sort((a, b) => (b._ts || 0) - (a._ts || 0))
+      : [];
+    if (typeof window._applyRemoteLog === 'function') {
+      window._applyRemoteLog(logs);
+    }
+  }, (err) => console.error('로그 수신 오류:', err));
+};
 
 // DOM 준비 후 리스닝 시작
-window.addEventListener('load', () => setTimeout(window._firebaseListen, 800));
+window.addEventListener('load', () => {
+  setTimeout(window._firebaseListen, 800);
+  setTimeout(window._firebaseListenLog, 900);
+});

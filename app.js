@@ -3,6 +3,12 @@
 let data = JSON.parse(JSON.stringify(RAW));
 data.forEach(r => { r._수정일 = null; r._수정ts = null; });
 let changes = {};
+let _allLogs = [];   // Firebase에서 로드된 전체 변경 로그
+
+window._applyRemoteLog = function(logs) {
+  _allLogs = logs;
+  updateLog();
+};
 let currentEditNo = null;
 let charts = {};
 
@@ -467,13 +473,18 @@ function saveEdit() {
   // 4) 변경분 또는 메모가 있으면 로그 기록
   const hasChange = Object.keys(변경내역).length > 0;
   if(hasChange || memo) {
-    changes[currentEditNo] = {
+    const logEntry = {
       no: currentEditNo,
       수정시각: nowTs.toLocaleString('ko-KR'),
+      _ts: nowTs.getTime(),
       변경내역: 변경내역,
-      메모: memo,
-      현재값: { ...data[idx] }
+      메모: memo
     };
+    changes[currentEditNo] = { ...logEntry, 현재값: { ...data[idx] } };
+    // Firebase에 영구 저장
+    if (typeof window._firebaseSaveLog === 'function') {
+      window._firebaseSaveLog(logEntry);
+    }
   } else {
     delete changes[currentEditNo];
   }
@@ -518,21 +529,70 @@ const FIELD_LABELS = {
 function updateLog() {
   const wrap = document.getElementById('logWrap');
   const empty = document.getElementById('logEmpty');
-  const cnt = Object.keys(changes).length;
-  empty.style.display = cnt===0?'block':'none';
-  const existing = wrap.querySelectorAll('.log-item');
-  existing.forEach(e=>e.remove());
-  Object.values(changes).reverse().forEach(c=>{
+  const filterDays = parseInt(document.getElementById('filterLogRecent')?.value) || 0;
+
+  // Firebase 로그 우선, 없으면 세션 changes 사용
+  let logs = _allLogs.length > 0 ? [..._allLogs] : Object.values(changes);
+
+  // 최근 1주일 필터
+  if (filterDays > 0) {
+    const cutoff = Date.now() - filterDays * 24 * 60 * 60 * 1000;
+    logs = logs.filter(c => (c._ts || 0) >= cutoff);
+  }
+
+  // 최신순 정렬
+  logs.sort((a, b) => (b._ts || 0) - (a._ts || 0));
+
+  empty.style.display = logs.length === 0 ? 'block' : 'none';
+  wrap.querySelectorAll('.log-item, .log-date-header').forEach(e => e.remove());
+
+  const countEl = document.getElementById('logCount');
+  if (countEl) countEl.textContent = logs.length;
+
+  // 날짜별 그룹핑
+  let lastDate = '';
+  logs.forEach(c => {
+    // 날짜 문자열 (그룹 헤더용)
+    const dateStr = c._ts
+      ? new Date(c._ts).toLocaleDateString('ko-KR', {year:'numeric', month:'long', day:'numeric', weekday:'short'})
+      : (c.수정시각 || '').split(' ').slice(0, 2).join(' ');
+    // 시간 문자열 (카드 우측)
+    const timeStr = c._ts
+      ? new Date(c._ts).toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'})
+      : (c.수정시각 || '').split(' ').slice(2).join(' ');
+
+    // 날짜가 바뀔 때 구분 헤더 삽입
+    if (dateStr !== lastDate) {
+      const dh = document.createElement('div');
+      dh.className = 'log-date-header';
+      dh.textContent = dateStr;
+      wrap.appendChild(dh);
+      lastDate = dateStr;
+    }
+
+    const chg = c.변경내역 || {};
+    const fieldRows = Object.entries(chg)
+      .filter(([, v]) => v.이전 !== v.이후)
+      .map(([k, v]) => `
+        <div class="log-row">
+          <span class="log-field">${FIELD_LABELS[k] || k}</span>
+          <span class="log-before">${String(v.이전 || '').substring(0, 80) || '(없음)'}</span>
+          <span class="log-arrow">→</span>
+          <span class="log-after">${String(v.이후 || '').substring(0, 80) || '(없음)'}</span>
+        </div>`).join('');
+    const noFields = fieldRows.length === 0
+      ? `<div style="font-size:11px;color:var(--text-2);font-style:italic;padding:4px 0;">필드 변경 없음 · 메모만 기록</div>`
+      : '';
+
     const div = document.createElement('div');
     div.className = 'log-item';
-    const chg = c.변경내역 || {};
-    const fieldRows = Object.entries(chg).filter(([k,v])=>v.이전!==v.이후).map(([k,v])=>`
-      <div class="log-row"><span class="log-field">${FIELD_LABELS[k]||k}</span><span class="log-before">${String(v.이전||'').substring(0,80)}</span><span class="log-after">${String(v.이후||'').substring(0,80)}</span></div>`).join('');
-    const noFields = fieldRows.length===0 ? `<div style="font-size:11px;color:var(--text-2);font-style:italic;padding:4px 0;">필드 변경 없음 · 메모만 기록</div>` : '';
     div.innerHTML = `
-      <div class="log-header"><span class="log-no">No.${c.no}</span><span class="log-time">${c.수정시각}</span></div>
+      <div class="log-header">
+        <span class="log-no">No.${c.no}</span>
+        <span class="log-time">${timeStr}</span>
+      </div>
       ${fieldRows}${noFields}
-      ${c.메모?`<div class="log-memo">메모: ${c.메모}</div>`:''}`;
+      ${c.메모 ? `<div class="log-memo">💬 ${c.메모}</div>` : ''}`;
     wrap.appendChild(div);
   });
 }

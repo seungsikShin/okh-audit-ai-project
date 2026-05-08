@@ -35,6 +35,9 @@ function enterSnapshotMode(weekKey) {
   }
   highlightWeeklyNav(weekKey);
   populateTargetFilter(data);
+  // 스냅샷 데이터는 과거 데이터이므로 '최근 수정' 필터 해제
+  const recentFilter = document.getElementById('filterRecent');
+  if (recentFilter) recentFilter.value = '';
   applyFilter();
   renderDashboard();
   renderSchedule();
@@ -660,8 +663,15 @@ function autoRecordWeekly() {
 
     const alreadyRecorded = !!weeklyHistory[key];
     const passedFridayNoon = now.getTime() >= fridayNoon.getTime();
+    // 당일(금요일) 재기록 허용: 최초 저장 시 Firebase 로드 전 RAW 데이터로 잘못 저장될 수 있으므로
+    // 금요일 당일에는 Firebase 데이터가 반영된 후 재기록해 덮어씀
+    const isSameDayAsFriday = now.getFullYear()===fridayNoon.getFullYear()
+      && now.getMonth()===fridayNoon.getMonth()
+      && now.getDate()===fridayNoon.getDate();
+    const shouldOverwrite = alreadyRecorded && isSameDayAsFriday
+      && weeklyHistory[key].anchorAt === fridayNoon.getTime();
 
-    if (passedFridayNoon && !alreadyRecorded) {
+    if (passedFridayNoon && (!alreadyRecorded || shouldOverwrite)) {
       // 금요일 12:00 지났고 아직 기록 없음 → 기록
       const active = data.filter(d=>d.착수상태);
       const started = data.filter(d=>d.착수상태==='착수');
@@ -859,6 +869,7 @@ window.addEventListener('scroll', updatePinnedTableHeader, { passive: true });
 
 // ── 초기화 ───────────────────────────────
 // Firebase 수신 데이터 → 로컬 data 반영
+let _firebaseDataLoaded = false; // Firebase 최초 수신 여부 추적
 window._applyRemoteData = function(remote) {
   // 스냅샷 모드 중이면 라이브 백업(liveData)을 갱신하고 화면은 덮어쓰지 않음
   const target = viewingWeek !== null && liveData ? liveData : data;
@@ -873,6 +884,11 @@ window._applyRemoteData = function(remote) {
   });
   populateTargetFilter(target);
   if (viewingWeek === null) applyFilter();
+  // Firebase 데이터 최초 수신 후 주차 이력 기록 (타이밍 보장)
+  if (!_firebaseDataLoaded) {
+    _firebaseDataLoaded = true;
+    loadWeeklyHistory();
+  }
 };
 window._dashData = data;
 
@@ -884,6 +900,7 @@ function init() {
   syncFloatingHeaderMode();
   renderTable(data);
   renderDashboard();
-  loadWeeklyHistory();
+  // loadWeeklyHistory()는 _applyRemoteData(Firebase 최초 수신) 후 실행됨
+  // → Firebase 데이터 반영 전에 RAW 데이터로 스냅샷이 저장되는 타이밍 버그 방지
 }
 document.addEventListener('DOMContentLoaded', init);

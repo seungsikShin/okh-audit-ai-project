@@ -210,24 +210,83 @@ function renderSchedule() {
     </div>`).join('');
 }
 
+// 에이전트별 사용 AI·구축 메타데이터
+// est:false = 사용자 확정값 / est:true = 활용계획 기반 추정치(확인 필요)
+const AGENT_META = {
+  'A-01': {est:false, summary:'보도자료·제재·입법예고 자동 수집 후 영향도 분류·알림',
+    ai:['AI계','Make AI'], build:['입법예고 API','크롤링(VBA)','메일 알림']},
+  'A-02': {est:false, summary:'지적사례·대외동향 학습으로 감사 대상·전략 자동 도출',
+    ai:['AI계'], build:["GPTS '감사지원에이전트'"]},
+  'A-03': {est:false, summary:'회의·인터뷰 녹취 STT 변환 후 리스크 포인트 자동 분석',
+    ai:['STT'], build:['Python 프로그램']},
+  'A-04': {est:false, summary:'징구자료 전처리 후 착안점·체크리스트·시나리오 자동 생성',
+    ai:['AI계'], build:['Python 파싱프로그램',"GPTS '감사실시통합에이전트'"]},
+  'A-05': {est:true, summary:'규정·자료·인터뷰 종합해 감사 보고서 초안 자동 작성·검증',
+    ai:['AI계'], build:['보고서 생성']},
+  'A-06': {est:true, summary:'통지·사후조치 이행 자동 추적, 기한 도래 시 리마인더',
+    ai:['AI계'], build:['메일 알림','대시보드']},
+  'A-07': {est:true, summary:'과거 징계사례 비교로 양정 형평성 분석·품의서 생성',
+    ai:['AI계'], build:['사례 DB','메일 알림']},
+  'A-08': {est:true, summary:'계약서 점검·가격 검증·의견서 작성 및 Q&A 챗봇 응대',
+    ai:['AI계','Claude'], build:['Q&A 챗봇','메일 알림']},
+  'A-09': {est:true, summary:'법인카드·예산·장부 이상거래 자동 탐지 및 보고서 생성',
+    ai:['AI계'], build:['Python 프로그램','BSP 연계','메일 알림']},
+  'A-10': {est:true, summary:'추심 통지문구 채권추심법 금지표현 자동 점검',
+    ai:['AI계'], build:['규정 점검']},
+  'A-11': {est:true, summary:'해외법인 보고서 번역·요약 및 정합성·리스크 자동 분석',
+    ai:['Claude','Gemini','범용 LLM','AI계'], build:['OCR·번역','보고서 생성']},
+  'A-12': {est:true, summary:'감독기관 요청 분석·수검일지·보고서 자동 작성, 기한 관리',
+    ai:['AI계'], build:['메일 알림','대시보드']},
+  'B-01': {est:true, summary:'계열사별 AML 지적사항 분류·요약 및 보고서 생성',
+    ai:['AI계'], build:['분류·보고서 생성']},
+  'B-02': {est:true, summary:'민원 유형 자동 분류·귀책 판단 및 리스크 분석',
+    ai:['AI계'], build:['분류·분석']},
+  'B-03': {est:true, summary:'익명 제보 상시 수집·법률 검토 및 캠페인 콘텐츠 제작',
+    ai:['AI계','범용 LLM'], build:['설문 폼(QR)','콘텐츠 제작']},
+  'B-04': {est:true, summary:'보호감시인·위수탁 현황 표준화 및 대시보드 관리',
+    ai:['AI계'], build:['메일 알림','대시보드']},
+  'B-05': {est:true, summary:'부서 예산 소진율 실시간 시각화·이상 지출 탐지',
+    ai:[], build:['BI 대시보드','메일 알림']},
+  'B-06': {est:true, summary:'운영계획·이행사항 기반 사후평가 보고서 자동 생성',
+    ai:['AI계'], build:['보고서 생성']},
+};
+function getAgentMeta(name){
+  const code = (String(name).match(/^[AB]-\d+/)||[])[0];
+  return AGENT_META[code] || {est:true, summary:'', ai:[], build:[]};
+}
+
 function renderAgents() {
   const agMap = {};
   data.filter(d=>d.에이전트).forEach(d=>{
-    if(!agMap[d.에이전트]) agMap[d.에이전트]={items:[],착수:0,미착수:0,진척합:0};
-    agMap[d.에이전트].items.push(d);
-    if(d.착수상태==='착수') agMap[d.에이전트].착수++;
-    else if(d.착수상태==='미착수') agMap[d.에이전트].미착수++;
-    agMap[d.에이전트].진척합+=d.진척률;
+    if(!agMap[d.에이전트]) agMap[d.에이전트]={items:[],완료:0,진행:0,미착수:0,진척합:0};
+    const g = agMap[d.에이전트];
+    g.items.push(d);
+    if(d.진척률>=1) g.완료++;
+    else if(d.착수상태==='착수') g.진행++;
+    else g.미착수++;
+    g.진척합+=d.진척률;
   });
   const grid = document.getElementById('agentGrid');
   grid.innerHTML = Object.entries(agMap).sort((a,b)=>a[0].localeCompare(b[0])).map(([name,v])=>{
     const avg = Math.round(v.진척합/v.items.length*100);
+    const meta = getAgentMeta(name);
+    const badges = (arr,cls)=> arr.length
+      ? arr.map(t=>`<span class="ag-badge ${cls}">${t}</span>`).join('')
+      : `<span class="ag-badge ${cls}" style="opacity:.45;">미정</span>`;
+    const estFlag = meta.est ? `<span class="ag-est-flag" title="활용계획 기반 추정치 — 확인 필요">🔴추정</span>` : '';
     return `<div class="agent-card">
-      <h4>${name}</h4>
-      <div class="ag-stat"><span>과제 ${v.items.length}건</span><span>착수 ${v.착수} / 미착수 ${v.미착수}</span></div>
+      <h4>${name}${estFlag}</h4>
+      <div class="ag-summary">${meta.summary||''}</div>
+      <div class="ag-badge-row"><span class="ag-badge-label">사용 AI</span><span class="ag-badge-list">${badges(meta.ai,'ai')}</span></div>
+      <div class="ag-badge-row"><span class="ag-badge-label">구축·연계</span><span class="ag-badge-list">${badges(meta.build,'build')}</span></div>
+      <div class="ag-count">
+        <span>과제 <b>${v.items.length}</b>건</span>
+        <span style="color:var(--primary);">완료 <b>${v.완료}</b></span>
+        <span style="color:var(--info);">진행 <b>${v.진행}</b></span>
+        <span style="color:var(--text-3);">미착수 <b>${v.미착수}</b></span>
+      </div>
       <div class="ag-bar-wrap"><div class="ag-bar-fill" style="width:${avg}%"></div></div>
       <div class="ag-stat"><span>평균 진척률</span><span style="font-weight:700;color:#147B52;">${avg}%</span></div>
-      <div class="ag-tasks" style="margin-top:6px;">${v.items.slice(0,3).map(it=>`<div style="padding:2px 0;border-bottom:1px solid #f5f5f5;">No.${it.no} ${it.태스크.split('\n')[0].substring(0,25)}...</div>`).join('')}${v.items.length>3?`<div style="color:#aaa;padding-top:2px;">외 ${v.items.length-3}건</div>`:''}</div>
     </div>`;
   }).join('');
 }

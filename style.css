@@ -178,6 +178,19 @@ td.cell-no{width:38px;text-align:center;color:var(--text-3);font-weight:600;}
 .agent-card .ag-bar-wrap{height:6px;background:var(--surface-hover);border-radius:99px;overflow:hidden;margin-bottom:10px;}
 .agent-card .ag-bar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#147B52,#21A66E);}
 .agent-card .ag-tasks{font-size:11px;color:var(--text-2);}
+.agent-card .ag-summary{font-size:12px;color:var(--text-2);line-height:1.5;margin-bottom:12px;min-height:18px;}
+.agent-card .ag-badges{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;}
+.agent-card .ag-badge-label{font-size:10px;font-weight:700;color:var(--text-3);width:38px;flex-shrink:0;padding-top:3px;letter-spacing:.02em;}
+.agent-card .ag-badge-row{display:flex;align-items:flex-start;gap:6px;margin-bottom:6px;}
+.agent-card .ag-badge-list{display:flex;flex-wrap:wrap;gap:4px;flex:1;}
+.ag-badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;line-height:1.5;white-space:nowrap;}
+.ag-badge.ai{background:#E0F2FE;color:#0369A1;}
+.ag-badge.build{background:var(--primary-soft);color:var(--primary-hover);}
+.ag-badge.est{position:relative;}
+.agent-card .ag-est-flag{font-size:10px;color:var(--danger);font-weight:700;margin-left:4px;}
+.agent-card .ag-count{display:flex;gap:8px;font-size:11px;margin-bottom:8px;}
+.agent-card .ag-count span{display:inline-flex;align-items:center;gap:3px;}
+.agent-card .ag-count b{font-weight:700;}
 
 /* 변경 로그 */
 .log-wrap{}

@@ -112,7 +112,7 @@ p{margin-bottom:1em;}
 .floating-table-head .head-row{display:flex;min-width:1320px;background:var(--surface-2);}
 .floating-table-head.wide .head-row{min-width:1980px;}
 .floating-table-head.compact .col-extra{display:none;}
-.head-cell{flex:0 0 auto;padding:14px 10px;font-size:13px;font-weight:600;color:var(--text-2);text-transform:uppercase;letter-spacing:0;white-space:nowrap;border-bottom:1px solid var(--border);}
+.head-cell{flex:0 0 auto;padding:14px 10px;font-size:13px;font-weight:600;color:var(--text-2);text-transform:uppercase;letter-spacing:0;white-space:nowrap;border-bottom:1px solid var(--border);text-align:center;}
 
 /* 변경 뱃지 */
 .change-badge{background:var(--warn-soft);color:#92400E;border:1px solid #FDE68A;border-radius:var(--radius-pill);padding:2px 8px;font-size:11px;font-weight:700;letter-spacing:0;display:none;}

@@ -271,9 +271,9 @@ const AGENT_AI_DEFAULT = {
   'A-01':{used:['aigye'],oper:['aigye']},
   'A-02':{used:['aigye','gpt'],oper:['aigye']},
   'A-03':{used:['python'],oper:['python']},
-  'A-04':{used:['aigye','python'],oper:['aigye']},
+  'A-04':{used:['aigye','python','gpt'],oper:['aigye','gpt']},
   'A-05':{used:['claude'],oper:['claude']},
-  'A-06':{used:['aigye'],oper:['aigye']},
+  'A-06':{used:['aigye','html'],oper:['aigye','html']},
   'A-07':{used:['aigye'],oper:['aigye']},
   'A-08':{used:['claude','aigye'],oper:['claude','aigye']},
   'A-09':{used:['aigye','python'],oper:['aigye']},
@@ -286,6 +286,22 @@ const AGENT_AI_DEFAULT = {
   'B-04':{used:['aigye'],oper:['aigye']},
   'B-05':{used:[],oper:[]},
   'B-06':{used:['aigye'],oper:['aigye']},
+};
+
+// 에이전트별 실제 운영처(제목 아래 표시) — name + 선택적 url(링크 연결)
+const AGENT_OPER_NAME = {
+  'A-01':{name:'클로드 스케쥴 자동실행(매일)'},
+  'A-02':{name:'감사실시 통합 에이전트'},
+  'A-03':{name:'감사 AI 플랫폼', url:'http://172.28.88.115:8000/team-dashboard'},
+  'A-04':{name:'감사실시통합에이전트'},
+  'A-05':{name:'클로드 디자인 감사결과 보고서'},
+  'A-06':{name:'사후관리 대시보드'},
+  'A-08':{name:'클로드 프로젝트 일상감사'},
+  'A-10':{name:'통지문구 법규점검 에이전트'},
+  'A-11':{name:'클로드 프로젝트 해외법인 감사 지원 에이전트(인니,PPCB)'},
+  'B-03':{name:'AI계 내부제보분석에이전트'},
+  'B-04':{name:'HTML 감사 위수탁'},
+  'B-05':{name:'HTML 감사부 예산'},
 };
 
 // 런타임 선택 상태 — 기본값 시드 후 localStorage(오프라인) → Firebase(원격) 순으로 덮어씀
@@ -307,7 +323,7 @@ function agentSel(code){ return agentAI[code] || (agentAI[code]={used:[],oper:[]
 function toggleAgentAI(code, key){
   const s=agentSel(code); const i=s.used.indexOf(key);
   if(i>=0){ s.used.splice(i,1); const j=s.oper.indexOf(key); if(j>=0)s.oper.splice(j,1); }
-  else s.used.push(key);
+  else { s.used.push(key); if(!s.oper.includes(key)) s.oper.push(key); }  // 선택 시 운영(이름 옆 배지)도 함께 표시
   persistAgentAI(code); renderAgents();
 }
 function toggleAgentOper(code, key, ev){
@@ -341,6 +357,8 @@ function renderAgents() {
     const code = (String(name).match(/^[AB]-\d+/)||[])[0];
     const sel = agentSel(code);
     const operBadges = sel.oper.map(k=>`<span class="oper-badge p-${k}">${PLAT[k].glyph} ${PLAT[k].label} 운영</span>`).join('');
+    const on = AGENT_OPER_NAME[code];
+    const operNameHtml = on ? `<div class="ag-oper-name">📍 ${on.url ? `<a href="${on.url}" target="_blank" rel="noopener">${on.name} ↗</a>` : on.name}</div>` : '';
     const tiles = AI_PLATFORMS.map(p=>{
       const on = sel.used.includes(p.key);
       const isOper = sel.oper.includes(p.key);
@@ -352,7 +370,7 @@ function renderAgents() {
       </button>`;
     }).join('');
     return `<div class="agent-card">
-      <div class="ag-head"><h4>${name}</h4>${operBadges}</div>
+      <div class="ag-head"><h4>${name}</h4>${operBadges}${operNameHtml}</div>
       <div class="ag-summary">${meta.summary||''}</div>
       <div class="ag-impl-label">구현 AI</div>
       <div class="ai-tile-grid">${tiles}</div>

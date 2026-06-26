@@ -288,20 +288,30 @@ const AGENT_AI_DEFAULT = {
   'B-06':{used:['aigye'],oper:['aigye']},
 };
 
-// 에이전트별 실제 운영처(제목 아래 표시) — name + 선택적 url(링크 연결)
+// 에이전트별 실제 운영처(제목 아래 표시)
+//  name + links:[{label,url}] (링크 1개면 label 생략 → 이름 자체가 링크, 2개+면 칩으로 표시)
 const AGENT_OPER_NAME = {
   'A-01':{name:'클로드 스케쥴 자동실행(매일)'},
-  'A-02':{name:'감사실시 통합 에이전트'},
-  'A-03':{name:'감사 AI 플랫폼', url:'http://172.28.88.115:8000/team-dashboard'},
-  'A-04':{name:'감사실시통합에이전트'},
-  'A-05':{name:'클로드 디자인 감사결과 보고서'},
+  'A-02':{name:'감사실시 통합 에이전트', links:[
+    {label:'GPT', url:'https://chatgpt.com/g/g-6a0177e4ac9c8191963ea3515cce8cab-gongsig-gamsa-silsi-tonghab-eijeonteu'},
+    {label:'AI계', url:'https://aip-works.okfngroup.com/projects/d622c0cc01949b89fc42a6784106c465/conversations/Q29udmVyc2F0aW9uOjZhM2UwZGY4ZmY2ZmM4ZGViMDNjM2QwNw=='}
+  ]},
+  'A-03':{name:'감사 AI 플랫폼', links:[{url:'http://172.28.88.115:8000/team-dashboard'}]},
+  'A-04':{name:'감사실시통합에이전트', links:[
+    {label:'GPT', url:'https://chatgpt.com/g/g-6a0177e4ac9c8191963ea3515cce8cab-gongsig-gamsa-silsi-tonghab-eijeonteu'},
+    {label:'AI계', url:'https://aip-works.okfngroup.com/projects/d622c0cc01949b89fc42a6784106c465/conversations/Q29udmVyc2F0aW9uOjZhM2UwZGY4ZmY2ZmM4ZGViMDNjM2QwNw=='}
+  ]},
+  'A-05':{name:'클로드 디자인 감사결과 보고서', links:[{url:'https://claude.ai/design/p/6f5cacf8-a86e-4c07-a7d0-9c0188527a54'}]},
   'A-06':{name:'사후관리 대시보드'},
-  'A-08':{name:'클로드 프로젝트 일상감사'},
-  'A-10':{name:'통지문구 법규점검 에이전트'},
-  'A-11':{name:'클로드 프로젝트 해외법인 감사 지원 에이전트(인니,PPCB)'},
-  'B-03':{name:'AI계 내부제보분석에이전트'},
+  'A-08':{name:'클로드 프로젝트 일상감사', links:[{url:'https://claude.ai/project/019ea9c6-5709-7625-97cb-17e73e28d4e3'}]},
+  'A-10':{name:'통지문구 법규점검 에이전트', links:[{url:'https://aip-works.okfngroup.com/projects/d622c0cc01949b89fc42a6784106c465/apps/TExNQXBwOjZhMmZiNGYzN2JlMzAzNTUwMWM5N2FhYg=='}]},
+  'A-11':{name:'클로드 프로젝트 해외법인 감사 지원 에이전트', links:[
+    {label:'인니', url:'https://claude.ai/project/019df209-25d4-7384-81e7-4d1e46a7d10d'},
+    {label:'PPCB', url:'https://claude.ai/project/019d9412-8a54-76fe-b7a3-d55ae853a2f7'}
+  ]},
+  'B-03':{name:'AI계 내부제보분석에이전트', links:[{url:'https://aip-works.okfngroup.com/projects/d622c0cc01949b89fc42a6784106c465/apps/TExNQXBwOjZhMzBmY2IzZWVjZjk2NmU2OGUxZTY2OA=='}]},
   'B-04':{name:'HTML 감사 위수탁'},
-  'B-05':{name:'HTML 감사부 예산'},
+  'B-05':{name:'HTML 감사부 예산', links:[{url:'https://gorgeous-phoenix-af09c9.netlify.app/'}]},
 };
 
 // 런타임 선택 상태 — 기본값 시드 후 localStorage(오프라인) → Firebase(원격) 순으로 덮어씀
@@ -358,7 +368,15 @@ function renderAgents() {
     const sel = agentSel(code);
     const operBadges = sel.oper.map(k=>`<span class="oper-badge p-${k}">${PLAT[k].glyph} ${PLAT[k].label} 운영</span>`).join('');
     const on = AGENT_OPER_NAME[code];
-    const operNameHtml = on ? `<div class="ag-oper-name">📍 ${on.url ? `<a href="${on.url}" target="_blank" rel="noopener">${on.name} ↗</a>` : on.name}</div>` : '';
+    let operNameHtml = '';
+    if(on){
+      const lks = on.links || (on.url ? [{url:on.url}] : []);
+      let inner;
+      if(lks.length===0) inner = on.name;
+      else if(lks.length===1) inner = `<a href="${lks[0].url}" target="_blank" rel="noopener">${on.name} ↗</a>`;
+      else inner = `${on.name} ` + lks.map(l=>`<a class="oper-link" href="${l.url}" target="_blank" rel="noopener">${l.label} ↗</a>`).join('');
+      operNameHtml = `<div class="ag-oper-name">📍 ${inner}</div>`;
+    }
     const tiles = AI_PLATFORMS.map(p=>{
       const on = sel.used.includes(p.key);
       const isOper = sel.oper.includes(p.key);

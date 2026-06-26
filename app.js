@@ -98,8 +98,6 @@ function renderDashboard() {
   document.getElementById('kpi-started-pct').textContent = Math.round(started.length/active.length*100)+'%';
   document.getElementById('kpi-done').textContent = done.length;
   document.getElementById('kpi-done-pct').textContent = active.length ? Math.round(done.length/active.length*100)+'%' : '0%';
-  const official = data.filter(d=>d.공식완료일 && String(d.공식완료일).trim() && String(d.공식완료일).trim() !== '-');
-  document.getElementById('kpi-official').textContent = official.length;
 
   // 착수 현황 도넛
   destroyChart('chartStatus');
@@ -304,12 +302,12 @@ const AGENT_OPER_NAME = {
   'A-05':{name:'클로드 디자인 감사결과 보고서', links:[{url:'https://claude.ai/design/p/6f5cacf8-a86e-4c07-a7d0-9c0188527a54'}]},
   'A-06':{name:'사후관리 대시보드'},
   'A-08':{name:'클로드 프로젝트 일상감사', links:[{url:'https://claude.ai/project/019ea9c6-5709-7625-97cb-17e73e28d4e3'}]},
-  'A-10':{name:'통지문구 법규점검 에이전트', links:[{url:'https://aip-works.okfngroup.com/projects/d622c0cc01949b89fc42a6784106c465/apps/TExNQXBwOjZhMmZiNGYzN2JlMzAzNTUwMWM5N2FhYg=='}]},
+  'A-10':{name:'채권추심문구 적법성 검토 에이전트', links:[{url:'https://aip-works.okfngroup.com/projects/d622c0cc01949b89fc42a6784106c465/apps/TExNQXBwOjZhMmZhZjZiYmNlNGJjY2JiZTQ2MDI5OQ=='}]},
   'A-11':{name:'클로드 프로젝트 해외법인 감사 지원 에이전트', links:[
     {label:'인니', url:'https://claude.ai/project/019df209-25d4-7384-81e7-4d1e46a7d10d'},
     {label:'PPCB', url:'https://claude.ai/project/019d9412-8a54-76fe-b7a3-d55ae853a2f7'}
   ]},
-  'B-03':{name:'AI계 내부제보분석에이전트', links:[{url:'https://aip-works.okfngroup.com/projects/d622c0cc01949b89fc42a6784106c465/apps/TExNQXBwOjZhMzBmY2IzZWVjZjk2NmU2OGUxZTY2OA=='}]},
+  'B-03':{name:'AI계 내부제보분석에이전트', links:[{url:'https://aip-works.okfngroup.com/projects/d622c0cc01949b89fc42a6784106c465/conversations/Q29udmVyc2F0aW9uOjZhM2UyNGEwOGRmMjU1YmU1NzZjODUzZg=='}]},
   'B-04':{name:'HTML 감사 위수탁'},
   'B-05':{name:'HTML 감사부 예산', links:[{url:'https://gorgeous-phoenix-af09c9.netlify.app/'}]},
 };

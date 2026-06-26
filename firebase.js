@@ -15,8 +15,9 @@ const FIREBASE_CONFIG = {
   appId:             "1:763599271245:web:73aeef5cdb6e07b5ca3304"
 };
 
-const DB_PATH  = "okh_audit/tasks";     // Realtime Database 경로
-const LOG_PATH = "okh_audit/changelog"; // 변경 로그 경로
+const DB_PATH    = "okh_audit/tasks";     // Realtime Database 경로
+const LOG_PATH   = "okh_audit/changelog"; // 변경 로그 경로
+const AGENT_PATH = "okh_audit/agentMeta"; // 에이전트별 사용 AI·운영 플랫폼
 
 // ── 초기화
 const app = initializeApp(FIREBASE_CONFIG);
@@ -87,8 +88,27 @@ window._firebaseListenLog = function listenLog() {
   }, (err) => console.error('로그 수신 오류:', err));
 };
 
+// ── 에이전트 메타(사용 AI·운영 플랫폼) 저장·수신 ─────
+window._firebaseSaveAgentMeta = function(code, obj) {
+  if (!code || !obj) return;
+  const updates = {};
+  updates[AGENT_PATH + '/' + code] = {
+    used: obj.used || [], oper: obj.oper || [], _updatedAt: serverTimestamp()
+  };
+  update(ref(db), updates).catch(err => console.error('에이전트 메타 저장 실패:', err));
+};
+window._firebaseListenAgentMeta = function() {
+  onValue(ref(db, AGENT_PATH), (snapshot) => {
+    const remote = snapshot.val();
+    if (remote && typeof window._applyRemoteAgentMeta === 'function') {
+      window._applyRemoteAgentMeta(remote);
+    }
+  }, (err) => console.error('에이전트 메타 수신 오류:', err));
+};
+
 // DOM 준비 후 리스닝 시작
 window.addEventListener('load', () => {
   setTimeout(window._firebaseListen, 800);
   setTimeout(window._firebaseListenLog, 900);
+  setTimeout(window._firebaseListenAgentMeta, 1000);
 });

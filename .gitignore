@@ -1,0 +1,7 @@
+# 로컬 개발/에이전트 산출물 (배포 불필요)
+.claude/
+_agent_plans.txt
+_agent_stats.txt
+
+# Firebase Functions 의존성
+functions/node_modules/

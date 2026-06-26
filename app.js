@@ -80,7 +80,7 @@ function switchTab(id, el) {
   if (id==='dashboard') { renderDashboard(); loadWeeklyHistory(); }
   if (id==='schedule') renderSchedule();
   if (id==='agents') renderAgents();
-  if (id==='tasklist') updateTaskStickyOffset();
+  if (id==='tasklist') { updateTaskStickyOffset(); syncHeaderWidths(); requestAnimationFrame(syncHeaderWidths); }
 }
 
 // ── 차트 헬퍼 ────────────────────────────
@@ -255,6 +255,67 @@ function getAgentMeta(name){
   return AGENT_META[code] || {est:true, summary:'', ai:[], build:[]};
 }
 
+// ── 구현 AI 플랫폼 (고정 5종) ─────────────
+const AI_PLATFORMS = [
+  {key:'claude', label:'클로드',   glyph:'✳'},
+  {key:'gemini', label:'제미나이', glyph:'✦'},
+  {key:'gpt',    label:'GPT',      glyph:'◍'},
+  {key:'aigye',  label:'AI계',     glyph:'<span style="font-family:Arial,Helvetica,sans-serif;font-weight:900;letter-spacing:-.5px;color:#231F20">OK<span style="color:#FF6F00">!</span></span>'},
+  {key:'python', label:'python',   glyph:'<svg viewBox="0 0 256 255" style="width:1em;height:1em;vertical-align:-.15em" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="pyB" x1="12.9%" y1="12%" x2="79.6%" y2="78.2%"><stop offset="0" stop-color="#387EB8"/><stop offset="1" stop-color="#366994"/></linearGradient><linearGradient id="pyY" x1="19.1%" y1="20.6%" x2="90.7%" y2="88.4%"><stop offset="0" stop-color="#FFE052"/><stop offset="1" stop-color="#FFC331"/></linearGradient></defs><path fill="url(#pyB)" d="M126.916.072c-64.832 0-60.784 28.115-60.784 28.115l.072 29.128h61.868v8.745H41.631S.145 61.355.145 126.77c0 65.417 36.21 63.097 36.21 63.097h21.61v-30.356s-1.165-36.21 35.632-36.21h61.362s34.475.557 34.475-33.319V33.97S232.115.072 126.916.072zM92.802 19.66a11.12 11.12 0 0 1 11.13 11.13 11.12 11.12 0 0 1-11.13 11.13 11.12 11.12 0 0 1-11.13-11.13 11.12 11.12 0 0 1 11.13-11.13z"/><path fill="url(#pyY)" d="M128.757 254.126c64.832 0 60.784-28.115 60.784-28.115l-.072-29.127H127.6v-8.745h86.441s41.486 4.705 41.486-60.711c0-65.416-36.21-63.096-36.21-63.096h-21.61v30.355s1.165 36.21-35.632 36.21h-61.362s-34.475-.557-34.475 33.32v56.013s-5.235 33.897 99.964 33.897zm34.114-19.586a11.12 11.12 0 0 1-11.13-11.131 11.12 11.12 0 0 1 11.13-11.13 11.12 11.12 0 0 1 11.131 11.13 11.12 11.12 0 0 1-11.131 11.13z"/></svg>'},
+];
+const PLAT = Object.fromEntries(AI_PLATFORMS.map(p=>[p.key,p]));
+
+// 에이전트별 사용 AI(used)·운영 플랫폼(oper) 기본값 — 카드에서 직접 변경 가능
+const AGENT_AI_DEFAULT = {
+  'A-01':{used:['aigye'],oper:['aigye']},
+  'A-02':{used:['aigye','gpt'],oper:['aigye']},
+  'A-03':{used:['python'],oper:['python']},
+  'A-04':{used:['aigye','python'],oper:['aigye']},
+  'A-05':{used:['claude'],oper:['claude']},
+  'A-06':{used:['aigye'],oper:['aigye']},
+  'A-07':{used:['aigye'],oper:['aigye']},
+  'A-08':{used:['claude','aigye'],oper:['claude','aigye']},
+  'A-09':{used:['aigye','python'],oper:['aigye']},
+  'A-10':{used:['aigye'],oper:['aigye']},
+  'A-11':{used:['claude','gemini','gpt','aigye'],oper:['claude']},
+  'A-12':{used:['aigye'],oper:['aigye']},
+  'B-01':{used:['aigye'],oper:['aigye']},
+  'B-02':{used:['aigye'],oper:['aigye']},
+  'B-03':{used:['aigye','gpt'],oper:['aigye']},
+  'B-04':{used:['aigye'],oper:['aigye']},
+  'B-05':{used:[],oper:[]},
+  'B-06':{used:['aigye'],oper:['aigye']},
+};
+
+// 런타임 선택 상태 — 기본값 시드 후 localStorage(오프라인) → Firebase(원격) 순으로 덮어씀
+let agentAI = {};
+Object.entries(AGENT_AI_DEFAULT).forEach(([k,v])=>{ agentAI[k]={used:[...v.used],oper:[...v.oper]}; });
+(function(){ try{ const raw=localStorage.getItem('okh_agentAI'); if(raw){ const o=JSON.parse(raw); Object.entries(o).forEach(([k,v])=>{ if(v) agentAI[k]={used:v.used||[],oper:v.oper||[]}; }); } }catch(e){} })();
+
+function persistAgentAI(code){
+  try{ localStorage.setItem('okh_agentAI', JSON.stringify(agentAI)); }catch(e){}
+  if(typeof window._firebaseSaveAgentMeta==='function') window._firebaseSaveAgentMeta(code, agentAI[code]);
+}
+window._applyRemoteAgentMeta = function(remote){
+  if(!remote) return;
+  Object.entries(remote).forEach(([k,v])=>{ if(v) agentAI[k]={used:v.used||[],oper:v.oper||[]}; });
+  try{ localStorage.setItem('okh_agentAI', JSON.stringify(agentAI)); }catch(e){}
+  const at=document.getElementById('tab-agents'); if(at&&at.classList.contains('active')) renderAgents();
+};
+function agentSel(code){ return agentAI[code] || (agentAI[code]={used:[],oper:[]}); }
+function toggleAgentAI(code, key){
+  const s=agentSel(code); const i=s.used.indexOf(key);
+  if(i>=0){ s.used.splice(i,1); const j=s.oper.indexOf(key); if(j>=0)s.oper.splice(j,1); }
+  else s.used.push(key);
+  persistAgentAI(code); renderAgents();
+}
+function toggleAgentOper(code, key, ev){
+  if(ev) ev.stopPropagation();
+  const s=agentSel(code); if(!s.used.includes(key)) return;  // 사용 중인 것만 운영 지정 가능
+  const j=s.oper.indexOf(key); if(j>=0)s.oper.splice(j,1); else s.oper.push(key);
+  persistAgentAI(code); renderAgents();
+}
+
 function renderAgents() {
   const agMap = {};
   data.filter(d=>d.에이전트).forEach(d=>{
@@ -267,18 +328,33 @@ function renderAgents() {
     g.진척합+=d.진척률;
   });
   const grid = document.getElementById('agentGrid');
-  grid.innerHTML = Object.entries(agMap).sort((a,b)=>a[0].localeCompare(b[0])).map(([name,v])=>{
+  const legend = `<div class="agent-legend">
+    <span class="lg-item"><span class="ai-tile sel mini"><span class="tile-check">✓</span></span> 선택된 구현 AI</span>
+    <span class="lg-item"><span class="ai-tile mini"></span> 미사용</span>
+    <span class="lg-item"><span class="oper-badge p-aigye">${PLAT.aigye.glyph} AI계 운영</span></span>
+    <span class="lg-note">타이틀 옆 = 실제 운영 플랫폼</span>
+  </div>`;
+  const cards = Object.entries(agMap).sort((a,b)=>a[0].localeCompare(b[0])).map(([name,v])=>{
     const avg = Math.round(v.진척합/v.items.length*100);
     const meta = getAgentMeta(name);
-    const badges = (arr,cls)=> arr.length
-      ? arr.map(t=>`<span class="ag-badge ${cls}">${t}</span>`).join('')
-      : `<span class="ag-badge ${cls}" style="opacity:.45;">미정</span>`;
-    const estFlag = meta.est ? `<span class="ag-est-flag" title="활용계획 기반 추정치 — 확인 필요">🔴추정</span>` : '';
+    const code = (String(name).match(/^[AB]-\d+/)||[])[0];
+    const sel = agentSel(code);
+    const operBadges = sel.oper.map(k=>`<span class="oper-badge p-${k}">${PLAT[k].glyph} ${PLAT[k].label} 운영</span>`).join('');
+    const tiles = AI_PLATFORMS.map(p=>{
+      const on = sel.used.includes(p.key);
+      const isOper = sel.oper.includes(p.key);
+      return `<button type="button" class="ai-tile p-${p.key} ${on?'sel':''}" onclick="toggleAgentAI('${code}','${p.key}')" title="${p.label} — ${on?'사용중 (클릭하여 해제)':'미사용 (클릭하여 사용)'}">
+        ${on?'<span class="tile-check">✓</span>':''}
+        ${on?`<span class="tile-star ${isOper?'on':''}" onclick="toggleAgentOper('${code}','${p.key}',event)" title="운영 플랫폼 지정/해제">${isOper?'★':'☆'}</span>`:''}
+        <span class="tile-ico">${p.glyph}</span>
+        <span class="tile-label">${p.label}</span>
+      </button>`;
+    }).join('');
     return `<div class="agent-card">
-      <h4>${name}${estFlag}</h4>
+      <div class="ag-head"><h4>${name}</h4>${operBadges}</div>
       <div class="ag-summary">${meta.summary||''}</div>
-      <div class="ag-badge-row"><span class="ag-badge-label">사용 AI</span><span class="ag-badge-list">${badges(meta.ai,'ai')}</span></div>
-      <div class="ag-badge-row"><span class="ag-badge-label">구축·연계</span><span class="ag-badge-list">${badges(meta.build,'build')}</span></div>
+      <div class="ag-impl-label">구현 AI</div>
+      <div class="ai-tile-grid">${tiles}</div>
       <div class="ag-count">
         <span>과제 <b>${v.items.length}</b>건</span>
         <span style="color:var(--primary);">완료 <b>${v.완료}</b></span>
@@ -289,6 +365,7 @@ function renderAgents() {
       <div class="ag-stat"><span>평균 진척률</span><span style="font-weight:700;color:#147B52;">${avg}%</span></div>
     </div>`;
   }).join('');
+  grid.innerHTML = legend + cards;
 }
 
 // ── 과제 목록 ────────────────────────────
@@ -341,7 +418,35 @@ function syncFloatingHeaderMode() {
   if (!wrap || !head) return;
   head.classList.toggle('wide', wrap.classList.contains('wide'));
   head.classList.toggle('compact', wrap.classList.contains('compact'));
+  syncHeaderWidths();
   head.scrollLeft = wrap.scrollLeft;
+}
+
+// 헤더(flex) 셀 너비를 본문 table(table-layout:fixed, width:100%)의 실제 컬럼 폭에
+// 맞춰 동기화 → 컬럼 펼침/닫힘에 따라 제목 위치가 본문과 정확히 정렬됨.
+function syncHeaderWidths() {
+  const wrap = document.getElementById('tableWrap');
+  const head = document.getElementById('floatingTableHead');
+  if (!wrap || !head) return;
+  const table = wrap.querySelector('#mainTable');
+  const headRow = head.querySelector('.head-row');
+  const firstRow = table && table.querySelector('tbody tr');
+  const headCells = [...head.querySelectorAll('.head-cell')];
+  // 표가 숨겨진 탭(width 0)에서는 동기화하지 않고 인라인 스타일을 비워 CSS 기본값 사용.
+  if (!table || !headRow || !firstRow || table.offsetParent === null) {
+    headCells.forEach(c => { c.style.width = ''; c.style.flex = ''; });
+    if (headRow) headRow.style.minWidth = '';
+    return;
+  }
+  const visBody = [...firstRow.children].filter(c => getComputedStyle(c).display !== 'none');
+  const visHead = headCells.filter(c => getComputedStyle(c).display !== 'none');
+  const n = Math.min(visBody.length, visHead.length);
+  headRow.style.minWidth = table.offsetWidth + 'px';
+  for (let i = 0; i < n; i++) {
+    const w = visBody[i].getBoundingClientRect().width;
+    visHead[i].style.flex = '0 0 ' + w + 'px';
+    visHead[i].style.width = w + 'px';
+  }
 }
 
 function bindFloatingHeaderScroll() {
@@ -924,6 +1029,7 @@ function showToast(msg) {
 
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();}});
 window.addEventListener('resize', updateTaskStickyOffset);
+window.addEventListener('resize', syncHeaderWidths);
 window.addEventListener('scroll', updatePinnedTableHeader, { passive: true });
 
 // ── 초기화 ───────────────────────────────
@@ -955,6 +1061,9 @@ function init() {
   const sel = document.getElementById('filterPerson');
   getPersonList().forEach(p=>{ const o=document.createElement('option'); o.value=p; o.textContent=p; sel.appendChild(o); });
   populateTargetFilter(data);
+  const liveWeek = getWeekLabel();
+  const fw = document.getElementById('footWeek'); if (fw) fw.textContent = liveWeek;
+  const tw = document.getElementById('topWeek'); if (tw) tw.textContent = liveWeek;
   bindFloatingHeaderScroll();
   syncFloatingHeaderMode();
   renderTable(data);

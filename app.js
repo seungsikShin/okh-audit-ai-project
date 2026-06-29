@@ -178,6 +178,51 @@ function renderSchedule() {
     qMap[q].items.push(d);
   });
   const qs = Object.keys(qMap).sort();
+  // 분기별 착수율·평균 진척률 산출
+  const startRates = qs.map(q=>{const d=qMap[q].착수+qMap[q].미착수; return d?Math.round(qMap[q].착수/d*100):0;});
+  const avgProgs = qs.map(q=>{const t=qMap[q].items.length; return t?Math.round(qMap[q].items.reduce((s,it)=>s+(it.진척률||0),0)/t*100):0;});
+  const maxVal = Math.max(1,...qs.map(q=>Math.max(qMap[q].착수,qMap[q].미착수)));
+
+  // 막대 위에 착수율·진척률 배지를 직접 그리는 커스텀 플러그인 (datalabels 미사용)
+  const roundRect=(c,x,y,w,h,r)=>{c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();};
+  const quarterRatePlugin = {
+    id:'quarterRate',
+    afterDatasetsDraw(chart){
+      const ctx=chart.ctx, m0=chart.getDatasetMeta(0), m1=chart.getDatasetMeta(1);
+      ctx.save();
+      ctx.font="700 11px 'Pretendard',sans-serif";
+      qs.forEach((q,i)=>{
+        const b0=m0.data[i]; if(!b0) return;
+        const b1=m1.data[i];
+        const cx=b1?(b0.x+b1.x)/2:b0.x;
+        const topY=Math.min(b0.y, b1?b1.y:b0.y);
+        const sTxt=`착수 ${startRates[i]}%`, pTxt=`진척 ${avgProgs[i]}%`;
+        const padX=9,gap=9,dot=7,dotGap=4,H=22;
+        const sW=dot+dotGap+ctx.measureText(sTxt).width;
+        const pW=dot+dotGap+ctx.measureText(pTxt).width;
+        const W=padX+sW+gap+1+gap+pW+padX;
+        let x=cx-W/2, y=topY-H-8;
+        if(y<chart.chartArea.top+2) y=topY+6;   // 위 공간 부족 시 막대 상단 안쪽에
+        // 배경 pill
+        ctx.fillStyle='#ffffff'; ctx.strokeStyle='#E4E7EC'; ctx.lineWidth=1;
+        ctx.shadowColor='rgba(16,24,40,.12)'; ctx.shadowBlur=6; ctx.shadowOffsetY=2;
+        roundRect(ctx,x,y,W,H,11); ctx.fill();
+        ctx.shadowColor='transparent'; ctx.stroke();
+        // 내용
+        const midY=y+H/2; let tx=x+padX;
+        ctx.textBaseline='middle'; ctx.textAlign='left';
+        ctx.fillStyle='#10B981'; ctx.beginPath(); ctx.arc(tx+dot/2,midY,dot/2,0,Math.PI*2); ctx.fill();
+        tx+=dot+dotGap; ctx.fillStyle='#067647'; ctx.fillText(sTxt,tx,midY);
+        tx+=ctx.measureText(sTxt).width+gap;
+        ctx.strokeStyle='#EAECF0'; ctx.beginPath(); ctx.moveTo(tx,y+5); ctx.lineTo(tx,y+H-5); ctx.stroke();
+        tx+=1+gap;
+        ctx.fillStyle='#2E90FA'; ctx.beginPath(); ctx.arc(tx+dot/2,midY,dot/2,0,Math.PI*2); ctx.fill();
+        tx+=dot+dotGap; ctx.fillStyle='#175CD3'; ctx.fillText(pTxt,tx,midY);
+      });
+      ctx.restore();
+    }
+  };
+
   destroyChart('chartQuarter');
   charts['chartQuarter'] = new Chart(document.getElementById('chartQuarter'), {
     type:'bar',
@@ -185,16 +230,21 @@ function renderSchedule() {
       {label:'착수',data:qs.map(q=>qMap[q].착수),backgroundColor:'#10B981',borderRadius:6,maxBarThickness:40},
       {label:'미착수',data:qs.map(q=>qMap[q].미착수),backgroundColor:'#E5E7EB',borderRadius:6,maxBarThickness:40}
     ]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'circle',font:{family:"'Pretendard',sans-serif",size:12},color:'#475467',padding:14}}},scales:{x:{grid:{display:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#98A2B3'}},y:{grid:{color:'#F3F4F6',drawBorder:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#98A2B3'}}}}
+    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:8}},plugins:{legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'circle',font:{family:"'Pretendard',sans-serif",size:12},color:'#475467',padding:14}},tooltip:{callbacks:{title(items){return qs[items[0].dataIndex];},footer(items){const i=items[0].dataIndex;return `착수율 ${startRates[i]}%  ·  평균 진척률 ${avgProgs[i]}%`;}}}},scales:{x:{grid:{display:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#98A2B3'}},y:{suggestedMax:Math.ceil(maxVal*1.25),grid:{color:'#F3F4F6',drawBorder:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#98A2B3'}}}},
+    plugins:[quarterRatePlugin]
   });
 
   // 분기별 목록
   const listDiv = document.getElementById('quarterList');
-  listDiv.innerHTML = qs.map(q=>`
+  listDiv.innerHTML = qs.map((q,qi)=>`
     <div style="margin-bottom:18px;">
-      <div style="display:inline-flex;align-items:center;gap:8px;font-weight:700;color:#147B52;margin-bottom:10px;padding:6px 14px;background:#E9F7EF;border:1px solid #BFE8D0;border-radius:999px;font-size:13px;letter-spacing:0;">${q} <span style="color:#1B8F61;">·</span> <span style="color:#475467;font-weight:600;">${qMap[q].items.length}건</span></div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+        <span style="display:inline-flex;align-items:center;gap:8px;font-weight:700;color:#147B52;padding:6px 14px;background:#E9F7EF;border:1px solid #BFE8D0;border-radius:999px;font-size:13px;letter-spacing:0;">${q} <span style="color:#1B8F61;">·</span> <span style="color:#475467;font-weight:600;">${qMap[q].items.length}건</span></span>
+        <span style="font-size:12px;font-weight:600;color:#475467;padding:5px 11px;background:#F2F4F7;border:1px solid #EAECF0;border-radius:999px;">착수율 <span style="color:#147B52;font-weight:700;">${startRates[qi]}%</span></span>
+        <span style="font-size:12px;font-weight:600;color:#475467;padding:5px 11px;background:#F2F4F7;border:1px solid #EAECF0;border-radius:999px;">평균 진척률 <span style="color:#147B52;font-weight:700;">${avgProgs[qi]}%</span></span>
+      </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;">
-        ${qMap[q].items.map(it=>`
+        ${qMap[q].items.map(it=>{const pct=Math.round((it.진척률||0)*100);return `
           <div style="background:#fff;border:1px solid #EAECF0;border-radius:12px;padding:12px 14px;font-size:13px;cursor:pointer;transition:all .15s;" onclick="goToTask(${it.no})" onmouseover="this.style.boxShadow='0 4px 12px rgba(20,123,82,.12)';this.style.borderColor='#BFE8D0';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='';this.style.borderColor='#EAECF0';this.style.transform=''">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
               <span style="color:#667085;font-weight:600;">No.${it.no}</span>
@@ -202,8 +252,12 @@ function renderSchedule() {
             </div>
             <div style="color:#101828;font-size:14px;font-weight:500;line-height:1.5;">${it.태스크.split('\n')[0]}</div>
             <div style="margin-top:6px;color:#475467;">${it.담당자||'-'}</div>
+            <div style="margin-top:8px;">
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:#667085;margin-bottom:3px;"><span>진척률</span><span style="color:#147B52;font-weight:700;">${pct}%</span></div>
+              <div style="height:6px;background:#EEF2F0;border-radius:999px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:#147B52;border-radius:999px;"></div></div>
+            </div>
             <div style="margin-top:8px;color:#147B52;font-size:11px;font-weight:600;letter-spacing:0;">→ 과제목록에서 보기</div>
-          </div>`).join('')}
+          </div>`;}).join('')}
       </div>
     </div>`).join('');
 }

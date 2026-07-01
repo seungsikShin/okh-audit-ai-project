@@ -344,17 +344,16 @@ const AGENT_AI_DEFAULT = {
 //  name + links:[{label,url}] (링크 1개면 label 생략 → 이름 자체가 링크, 2개+면 칩으로 표시)
 const AGENT_OPER_NAME = {
   'A-01':{name:'클로드 스케쥴 자동실행(매일)'},
-  'A-02':{name:'감사실시 통합 에이전트', links:[
-    {label:'GPT', url:'https://chatgpt.com/g/g-6a0177e4ac9c8191963ea3515cce8cab-gongsig-gamsa-silsi-tonghab-eijeonteu'},
-    {label:'AI계', url:'https://aip-works.okfngroup.com/projects/d622c0cc01949b89fc42a6784106c465/conversations/Q29udmVyc2F0aW9uOjZhM2UwZGY4ZmY2ZmM4ZGViMDNjM2QwNw=='}
-  ]},
   'A-03':{name:'감사 AI 플랫폼', links:[{url:'http://172.28.88.115:8000/team-dashboard'}]},
   'A-04':{name:'감사실시통합에이전트', links:[
     {label:'GPT', url:'https://chatgpt.com/g/g-6a0177e4ac9c8191963ea3515cce8cab-gongsig-gamsa-silsi-tonghab-eijeonteu'},
     {label:'AI계', url:'https://aip-works.okfngroup.com/projects/d622c0cc01949b89fc42a6784106c465/conversations/Q29udmVyc2F0aW9uOjZhM2UwZGY4ZmY2ZmM4ZGViMDNjM2QwNw=='}
   ]},
   'A-05':{name:'클로드 디자인 감사결과 보고서', links:[{url:'https://claude.ai/design/p/6f5cacf8-a86e-4c07-a7d0-9c0188527a54'}]},
-  'A-06':{name:'사후관리 대시보드'},
+  'A-06':{name:'사후관리 대시보드', links:[
+    {label:'AI계', url:'https://aip-works.okfngroup.com/projects/d622c0cc01949b89fc42a6784106c465/conversations/Q29udmVyc2F0aW9uOjZhNDRhZmI2OWFlMzAyNGE5ODFiYjA5NQ=='},
+    {label:'클로드', url:'https://claude.ai/project/019eaa7f-55aa-75af-bdbf-96b80660ffb8'}
+  ]},
   'A-08':{name:'클로드 프로젝트 일상감사', links:[{url:'https://claude.ai/project/019ea9c6-5709-7625-97cb-17e73e28d4e3'}]},
   'A-10':{name:'채권추심문구 적법성 검토 에이전트', links:[{url:'https://aip-works.okfngroup.com/projects/d622c0cc01949b89fc42a6784106c465/apps/TExNQXBwOjZhMmZhZjZiYmNlNGJjY2JiZTQ2MDI5OQ=='}]},
   'A-11':{name:'클로드 프로젝트 해외법인 감사 지원 에이전트', links:[

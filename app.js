@@ -347,11 +347,11 @@ const AGENT_OPER_NAME = {
   'A-03':{name:'감사 AI 플랫폼', links:[{url:'http://172.28.88.115:8000/team-dashboard'}]},
   'A-04':{name:'감사실시통합에이전트', links:[
     {label:'GPT', url:'https://chatgpt.com/g/g-6a0177e4ac9c8191963ea3515cce8cab-gongsig-gamsa-silsi-tonghab-eijeonteu'},
-    {label:'AI계', url:'https://aip-works.okfngroup.com/projects/d622c0cc01949b89fc42a6784106c465/conversations/Q29udmVyc2F0aW9uOjZhM2UwZGY4ZmY2ZmM4ZGViMDNjM2QwNw=='}
+    {label:'AI계', url:'https://aip-works.okfngroup.com/projects/d622c0cc01949b89fc42a6784106c465/apps/TExNQXBwOjZhNDFmYmIwMWM0NjdhNDY3Y2QyMjI5ZA=='}
   ]},
   'A-05':{name:'클로드 디자인 감사결과 보고서', links:[{url:'https://claude.ai/design/p/6f5cacf8-a86e-4c07-a7d0-9c0188527a54'}]},
   'A-06':{name:'사후관리 대시보드', links:[
-    {label:'AI계', url:'https://aip-works.okfngroup.com/projects/d622c0cc01949b89fc42a6784106c465/conversations/Q29udmVyc2F0aW9uOjZhNDRhZmI2OWFlMzAyNGE5ODFiYjA5NQ=='},
+    {label:'AI계', url:'https://aip-works.okfngroup.com/projects/d622c0cc01949b89fc42a6784106c465/apps/TExNQXBwOjY5ZjE1NDAwYTlmMTY2MmNmZmZlZjUwOA=='},
     {label:'클로드', url:'https://claude.ai/project/019eaa7f-55aa-75af-bdbf-96b80660ffb8'}
   ]},
   'A-08':{name:'클로드 프로젝트 일상감사', links:[{url:'https://claude.ai/project/019ea9c6-5709-7625-97cb-17e73e28d4e3'}]},
@@ -360,7 +360,7 @@ const AGENT_OPER_NAME = {
     {label:'인니', url:'https://claude.ai/project/019df209-25d4-7384-81e7-4d1e46a7d10d'},
     {label:'PPCB', url:'https://claude.ai/project/019d9412-8a54-76fe-b7a3-d55ae853a2f7'}
   ]},
-  'B-03':{name:'AI계 내부제보분석에이전트', links:[{url:'https://aip-works.okfngroup.com/projects/d622c0cc01949b89fc42a6784106c465/conversations/Q29udmVyc2F0aW9uOjZhM2UyNGEwOGRmMjU1YmU1NzZjODUzZg=='}]},
+  'B-03':{name:'AI계 내부제보분석에이전트', links:[{url:'https://aip-works.okfngroup.com/projects/d622c0cc01949b89fc42a6784106c465/apps/TExNQXBwOjZhMzBmY2IzZWVjZjk2NmU2OGUxZTY2OA=='}]},
   'B-04':{name:'HTML 감사 위수탁'},
   'B-05':{name:'HTML 감사부 예산', links:[{url:'https://gorgeous-phoenix-af09c9.netlify.app/'}]},
 };
@@ -414,6 +414,10 @@ function renderAgents() {
   </div>`;
   const cards = Object.entries(agMap).sort((a,b)=>a[0].localeCompare(b[0])).map(([name,v])=>{
     const avg = Math.round(v.진척합/v.items.length*100);
+    const quarters = [...new Set(v.items.map(it=>normalizeTarget(it.목표완료)).filter(Boolean))].sort();
+    const deadlineHtml = quarters.length
+      ? `<div class="ag-deadline">🗓 마감 <b>${quarters[quarters.length-1]}</b>${quarters.length>1?`<span class="ag-dl-range">${quarters[0].replace(/^2026\s*/,'')}~${quarters[quarters.length-1].replace(/^2026\s*/,'')}</span>`:''}</div>`
+      : '';
     const meta = getAgentMeta(name);
     const code = (String(name).match(/^[AB]-\d+/)||[])[0];
     const sel = agentSel(code);
@@ -451,6 +455,7 @@ function renderAgents() {
       </div>
       <div class="ag-bar-wrap"><div class="ag-bar-fill" style="width:${avg}%"></div></div>
       <div class="ag-stat"><span>평균 진척률</span><span style="font-weight:700;color:#147B52;">${avg}%</span></div>
+      ${deadlineHtml}
     </div>`;
   }).join('');
   grid.innerHTML = legend + cards;

@@ -237,6 +237,9 @@ td.cell-no{width:38px;text-align:center;color:var(--text-3);font-weight:600;}
 .agent-card .ag-count{display:flex;gap:8px;font-size:11px;margin-bottom:8px;}
 .agent-card .ag-count span{display:inline-flex;align-items:center;gap:3px;}
 .agent-card .ag-count b{font-weight:700;}
+.agent-card .ag-deadline{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-2);margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);}
+.agent-card .ag-deadline b{font-weight:700;color:var(--info);}
+.agent-card .ag-dl-range{margin-left:auto;font-size:11px;font-weight:600;color:var(--text-3);background:var(--surface-hover);border:1px solid var(--border);border-radius:999px;padding:2px 9px;}
 
 /* 변경 로그 */
 .log-wrap{}

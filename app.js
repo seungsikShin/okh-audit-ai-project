@@ -316,13 +316,22 @@ const AI_PLATFORMS = [
   {key:'python', label:'python',   glyph:'<svg viewBox="0 0 256 255" style="width:1em;height:1em;vertical-align:-.15em" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="pyB" x1="12.9%" y1="12%" x2="79.6%" y2="78.2%"><stop offset="0" stop-color="#387EB8"/><stop offset="1" stop-color="#366994"/></linearGradient><linearGradient id="pyY" x1="19.1%" y1="20.6%" x2="90.7%" y2="88.4%"><stop offset="0" stop-color="#FFE052"/><stop offset="1" stop-color="#FFC331"/></linearGradient></defs><path fill="url(#pyB)" d="M126.916.072c-64.832 0-60.784 28.115-60.784 28.115l.072 29.128h61.868v8.745H41.631S.145 61.355.145 126.77c0 65.417 36.21 63.097 36.21 63.097h21.61v-30.356s-1.165-36.21 35.632-36.21h61.362s34.475.557 34.475-33.319V33.97S232.115.072 126.916.072zM92.802 19.66a11.12 11.12 0 0 1 11.13 11.13 11.12 11.12 0 0 1-11.13 11.13 11.12 11.12 0 0 1-11.13-11.13 11.12 11.12 0 0 1 11.13-11.13z"/><path fill="url(#pyY)" d="M128.757 254.126c64.832 0 60.784-28.115 60.784-28.115l-.072-29.127H127.6v-8.745h86.441s41.486 4.705 41.486-60.711c0-65.416-36.21-63.096-36.21-63.096h-21.61v30.355s1.165 36.21-35.632 36.21h-61.362s-34.475-.557-34.475 33.32v56.013s-5.235 33.897 99.964 33.897zm34.114-19.586a11.12 11.12 0 0 1-11.13-11.131 11.12 11.12 0 0 1 11.13-11.13 11.12 11.12 0 0 1 11.131 11.13 11.12 11.12 0 0 1-11.131 11.13z"/></svg>'},
   {key:'html',   label:'HTML',     glyph:'<svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-.15em" fill="none" stroke="url(#htmlG)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="htmlG" x1="3" y1="2" x2="21" y2="22" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#2B8EF0"/><stop offset=".5" stop-color="#7E57C2"/><stop offset="1" stop-color="#E5394E"/></linearGradient></defs><path d="M6 2 H14 L19 7 V22 H6 Z"/><path d="M14 2 V7 H19"/><path d="M10 9.5 L7.8 12.5 L10 15.5"/><path d="M13.6 8.8 L11.4 16.2"/><path d="M14.8 9.5 L17 12.5 L14.8 15.5"/></svg>'},
 ];
-const PLAT = Object.fromEntries(AI_PLATFORMS.map(p=>[p.key,p]));
+// A-03 전용 추가 플랫폼 — SLLM (첨부 이미지 아이콘)
+const EXTRA_PLATFORMS = [
+  {key:'sllm', label:'SLLM', glyph:'<img src="data:image/png;base64,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" style="width:1.25em;height:1.25em;vertical-align:-.32em;object-fit:contain" alt="SLLM">'},
+];
+const PLAT = Object.fromEntries([...AI_PLATFORMS, ...EXTRA_PLATFORMS].map(p=>[p.key,p]));
+
+// 에이전트별 구현 AI 타일 목록 오버라이드 (미지정 시 AI_PLATFORMS 전체 사용)
+const AGENT_PLATFORMS = {
+  'A-03': ['claude','gemini','gpt','aigye','python','sllm'],  // HTML 제거 + SLLM 추가
+};
 
 // 에이전트별 사용 AI(used)·운영 플랫폼(oper) 기본값 — 카드에서 직접 변경 가능
 const AGENT_AI_DEFAULT = {
   'A-01':{used:['aigye'],oper:['aigye']},
   'A-02':{used:['aigye','gpt'],oper:['aigye']},
-  'A-03':{used:['python'],oper:['python']},
+  'A-03':{used:['python','sllm'],oper:['python']},
   'A-04':{used:['aigye','python','gpt'],oper:['aigye','gpt']},
   'A-05':{used:['claude'],oper:['claude']},
   'A-06':{used:['aigye','html'],oper:['aigye','html']},
@@ -349,7 +358,10 @@ const AGENT_OPER_NAME = {
     {label:'GPT', url:'https://chatgpt.com/g/g-6a0177e4ac9c8191963ea3515cce8cab-gongsig-gamsa-silsi-tonghab-eijeonteu'},
     {label:'AI계', url:'https://aip-works.okfngroup.com/projects/d622c0cc01949b89fc42a6784106c465/apps/TExNQXBwOjZhNDFmYmIwMWM0NjdhNDY3Y2QyMjI5ZA=='}
   ]},
-  'A-05':{name:'클로드 디자인 감사결과 보고서', links:[{url:'https://claude.ai/design/p/6f5cacf8-a86e-4c07-a7d0-9c0188527a54'}]},
+  'A-05':{name:'클로드 디자인 감사결과 보고서', links:[
+    {label:'클로드', url:'https://claude.ai/design/p/6f5cacf8-a86e-4c07-a7d0-9c0188527a54'},
+    {label:'AI계', url:'https://aip-works.okfngroup.com/projects/d622c0cc01949b89fc42a6784106c465/apps/TExNQXBwOjZhMmY4OTVkYTJjYTRiOGIwMjkwYjllMA=='}
+  ]},
   'A-06':{name:'사후관리 대시보드', links:[
     {label:'AI계', url:'https://aip-works.okfngroup.com/projects/d622c0cc01949b89fc42a6784106c465/apps/TExNQXBwOjY5ZjE1NDAwYTlmMTY2MmNmZmZlZjUwOA=='},
     {label:'클로드', url:'https://claude.ai/project/019eaa7f-55aa-75af-bdbf-96b80660ffb8'}
@@ -370,6 +382,16 @@ let agentAI = {};
 Object.entries(AGENT_AI_DEFAULT).forEach(([k,v])=>{ agentAI[k]={used:[...v.used],oper:[...v.oper]}; });
 (function(){ try{ const raw=localStorage.getItem('okh_agentAI'); if(raw){ const o=JSON.parse(raw); Object.entries(o).forEach(([k,v])=>{ if(v) agentAI[k]={used:v.used||[],oper:v.oper||[]}; }); } }catch(e){} })();
 
+// A-03: SLLM 항상 선택 고정, HTML 제외 (저장된 상태와 무관하게 강제)
+function enforceAgentPins(){
+  const s = agentAI['A-03'] || (agentAI['A-03']={used:[],oper:[]});
+  if(!s.used.includes('sllm')) s.used.push('sllm');
+  if(!s.oper.includes('sllm')) s.oper.push('sllm');
+  s.used = s.used.filter(k=>k!=='html');
+  s.oper = s.oper.filter(k=>k!=='html');
+}
+enforceAgentPins();
+
 function persistAgentAI(code){
   try{ localStorage.setItem('okh_agentAI', JSON.stringify(agentAI)); }catch(e){}
   if(typeof window._firebaseSaveAgentMeta==='function') window._firebaseSaveAgentMeta(code, agentAI[code]);
@@ -377,14 +399,15 @@ function persistAgentAI(code){
 window._applyRemoteAgentMeta = function(remote){
   if(!remote) return;
   Object.entries(remote).forEach(([k,v])=>{ if(v) agentAI[k]={used:v.used||[],oper:v.oper||[]}; });
+  enforceAgentPins();
   try{ localStorage.setItem('okh_agentAI', JSON.stringify(agentAI)); }catch(e){}
   const at=document.getElementById('tab-agents'); if(at&&at.classList.contains('active')) renderAgents();
 };
 function agentSel(code){ return agentAI[code] || (agentAI[code]={used:[],oper:[]}); }
 function toggleAgentAI(code, key){
-  const s=agentSel(code); const i=s.used.indexOf(key);
-  if(i>=0){ s.used.splice(i,1); const j=s.oper.indexOf(key); if(j>=0)s.oper.splice(j,1); }
-  else { s.used.push(key); if(!s.oper.includes(key)) s.oper.push(key); }  // 선택 시 운영(이름 옆 배지)도 함께 표시
+  const s=agentSel(code);
+  if(s.used.includes(key)) return;  // 선택된 구현 AI는 고정 — 해제 불가
+  s.used.push(key); if(!s.oper.includes(key)) s.oper.push(key);  // 선택 시 운영(이름 옆 배지)도 함께 표시
   persistAgentAI(code); renderAgents();
 }
 function toggleAgentOper(code, key, ev){
@@ -421,7 +444,10 @@ function renderAgents() {
     const meta = getAgentMeta(name);
     const code = (String(name).match(/^[AB]-\d+/)||[])[0];
     const sel = agentSel(code);
-    const operBadges = sel.oper.map(k=>`<span class="oper-badge p-${k}">${PLAT[k].glyph} ${PLAT[k].label} 운영</span>`).join('');
+    const allowedPlats = AGENT_PLATFORMS[code] || AI_PLATFORMS.map(p=>p.key);
+    const selUsed = sel.used.filter(k=>allowedPlats.includes(k));
+    const selOper = sel.oper.filter(k=>allowedPlats.includes(k));
+    const operBadges = selOper.map(k=>`<span class="oper-badge p-${k}">${PLAT[k].glyph} ${PLAT[k].label} 운영</span>`).join('');
     const on = AGENT_OPER_NAME[code];
     let operNameHtml = '';
     if(on){
@@ -432,10 +458,10 @@ function renderAgents() {
       else inner = `${on.name} ` + lks.map(l=>`<a class="oper-link" href="${l.url}" target="_blank" rel="noopener">${l.label} ↗</a>`).join('');
       operNameHtml = `<div class="ag-oper-name">📍 ${inner}</div>`;
     }
-    const tiles = AI_PLATFORMS.map(p=>{
-      const on = sel.used.includes(p.key);
-      const isOper = sel.oper.includes(p.key);
-      return `<button type="button" class="ai-tile p-${p.key} ${on?'sel':''}" onclick="toggleAgentAI('${code}','${p.key}')" title="${p.label} — ${on?'사용중 (클릭하여 해제)':'미사용 (클릭하여 사용)'}">
+    const tiles = allowedPlats.map(k=>PLAT[k]).map(p=>{
+      const on = selUsed.includes(p.key);
+      const isOper = selOper.includes(p.key);
+      return `<button type="button" class="ai-tile p-${p.key} ${on?'sel':''}" onclick="toggleAgentAI('${code}','${p.key}')" title="${p.label} — ${on?'사용중 (고정됨)':'미사용 (클릭하여 사용)'}">
         ${on?'<span class="tile-check">✓</span>':''}
         ${on?`<span class="tile-star ${isOper?'on':''}" onclick="toggleAgentOper('${code}','${p.key}',event)" title="운영 플랫폼 지정/해제">${isOper?'★':'☆'}</span>`:''}
         <span class="tile-ico">${p.glyph}</span>

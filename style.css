@@ -218,6 +218,9 @@ td.cell-no{width:38px;text-align:center;color:var(--text-3);font-weight:600;}
 .ai-tile.p-html.sel{background:#FCEAEC;border-color:#E7A6AD;}
 .ai-tile.p-html.sel .tile-ico,.ai-tile.p-html.sel .tile-label{color:#C53A4E;}
 .ai-tile.p-html.sel .tile-check{background:#C53A4E;}
+.ai-tile.p-sllm.sel{background:#FDECEC;border-color:#EEA9A6;}
+.ai-tile.p-sllm.sel .tile-ico,.ai-tile.p-sllm.sel .tile-label{color:#C0392B;}
+.ai-tile.p-sllm.sel .tile-check{background:#C0392B;}
 .oper-badge{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;padding:2px 9px;border-radius:var(--radius-pill);background:var(--surface-hover);color:var(--text-2);border:1px solid var(--border);white-space:nowrap;}
 .oper-badge.p-claude{background:#FDEEEA;color:#C0573C;border-color:#E6A18F;}
 .oper-badge.p-gemini{background:#E9F0FE;color:#3B6FD4;border-color:#A9C4F5;}
@@ -225,6 +228,7 @@ td.cell-no{width:38px;text-align:center;color:var(--text-3);font-weight:600;}
 .oper-badge.p-aigye{background:#EDEAFE;color:#6B4FD0;border-color:#B9AEF0;}
 .oper-badge.p-python{background:#E8F1F8;color:#3A6EA5;border-color:#A9C7E0;}
 .oper-badge.p-html{background:#FCEAEC;color:#C53A4E;border-color:#E7A6AD;}
+.oper-badge.p-sllm{background:#FDECEC;color:#C0392B;border-color:#EEA9A6;}
 .agent-card .ag-badges{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;}
 .agent-card .ag-badge-label{font-size:10px;font-weight:700;color:var(--text-3);width:38px;flex-shrink:0;padding-top:3px;letter-spacing:.02em;}
 .agent-card .ag-badge-row{display:flex;align-items:flex-start;gap:6px;margin-bottom:6px;}

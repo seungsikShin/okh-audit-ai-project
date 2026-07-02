@@ -110,8 +110,8 @@ p{margin-bottom:1em;}
 
 /* 고정 컬럼 헤더 */
 .floating-table-head{margin-top:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg) var(--radius-lg) 0 0;box-shadow:var(--shadow-sm);overflow-x:auto;overflow-y:hidden;}
-.floating-table-head .head-row{display:flex;min-width:1320px;background:var(--surface-2);}
-.floating-table-head.wide .head-row{min-width:1980px;}
+.floating-table-head .head-row{display:flex;min-width:1410px;background:var(--surface-2);}
+.floating-table-head.wide .head-row{min-width:2140px;}
 .floating-table-head.compact .col-extra{display:none;}
 .head-cell{flex:0 0 auto;padding:14px 10px;font-size:13px;font-weight:600;color:var(--text-2);text-transform:uppercase;letter-spacing:0;white-space:nowrap;border-bottom:1px solid var(--border);text-align:center;}
 
@@ -130,8 +130,8 @@ p{margin-bottom:1em;}
 /* 테이블 */
 .table-wrap{background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--radius-lg) var(--radius-lg);box-shadow:var(--shadow-sm);overflow-x:auto;overflow-y:clip;}
 .table-wrap.wide{overflow-x:auto;overflow-y:clip;}
-.table-wrap.compact table{min-width:1320px;}
-.table-wrap.wide table{min-width:1980px;}
+.table-wrap.compact table{min-width:1410px;}
+.table-wrap.wide table{min-width:2140px;}
 .table-wrap.compact .col-extra{display:none;}
 table{width:100%;border-collapse:collapse;background:var(--surface);table-layout:fixed;}
 #mainTable thead{display:none;}
@@ -146,7 +146,7 @@ thead th{padding:14px 10px;text-align:left;font-size:13px;font-weight:600;white-
 .col-toggle .switch.on::after{transform:translateX(16px);}
 .col-no{width:38px;} .col-area{width:120px;} .col-agent{width:150px;}
 .col-modified{width:76px;}
-.col-task{width:260px;} .col-plan{width:420px;} .col-person{width:76px;}
+.col-task{width:260px;} .col-plan-asis{width:180px;} .col-plan{width:400px;} .col-person{width:76px;}
 .col-status{width:76px;} .col-progress{width:90px;} .col-target{width:78px;} .col-action{width:58px;}
 .col-shift{width:44px;} .col-priority{width:48px;} .col-aiuse{width:78px;}
 .col-type{width:58px;} .col-method{width:92px;} .col-constraint{width:120px;} .col-official{width:70px;}
@@ -157,7 +157,7 @@ tbody tr:last-child{border-bottom:none;}
 tbody tr:hover{background:var(--surface-2);}
 tbody tr.modified{background:var(--primary-soft) !important;}
 tbody tr.modified td:first-child{box-shadow:inset 3px 0 0 var(--primary);}
-td{padding:12px 10px;vertical-align:top;font-size:14px;color:var(--text);}
+td{padding:12px 10px;vertical-align:middle;font-size:14px;color:var(--text);}
 td.cell-no{width:38px;text-align:center;color:var(--text-3);font-weight:600;}
 .cell-text{white-space:pre-wrap;word-break:keep-all;overflow-wrap:break-word;line-height:1.6;}
 .badge-착수{background:var(--accent-soft);color:#065F46;border-radius:var(--radius-pill);padding:3px 10px;font-size:11px;font-weight:600;}
@@ -276,6 +276,11 @@ td.cell-no{width:38px;text-align:center;color:var(--text-3);font-weight:600;}
 .form-group textarea,.form-group input[type=text],.form-group select{width:100%;border:1px solid var(--border);background:var(--surface);border-radius:10px;padding:10px 12px;font-size:13px;font-family:inherit;color:var(--text);transition:border-color .15s,box-shadow .15s;}
 .form-group textarea{resize:vertical;min-height:70px;line-height:1.5;}
 .form-group input[type=text]:focus,.form-group textarea:focus,.form-group select:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring);}
+/* AI 활용(To-Be) 구현/작동/산출물 입력 그룹 */
+.plan-tobe-group{border:1px solid var(--primary);border-radius:10px;padding:12px 12px 0;margin-bottom:16px;}
+.plan-tobe-group .plan-tobe-title{font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:0;margin-bottom:10px;}
+.plan-tobe-group .form-group{margin-bottom:12px;}
+.plan-tobe-group textarea{min-height:44px;}
 .form-group .hint{font-size:11px;color:var(--text-3);margin-top:4px;line-height:1.4;}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .slider-wrap{display:flex;align-items:center;gap:12px;}

@@ -193,7 +193,7 @@ td.cell-no{width:38px;text-align:center;color:var(--text-3);font-weight:600;}
 .agent-legend .lg-item{display:inline-flex;align-items:center;gap:6px;}
 .agent-legend .lg-note{margin-left:auto;color:var(--text-3);font-size:11px;}
 .ai-tile-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin-bottom:14px;}
-.ai-tile{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:10px 4px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);cursor:pointer;transition:opacity .15s,border-color .15s,background .15s;opacity:.5;}
+.ai-tile{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:10px 4px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);cursor:default;transition:opacity .15s,border-color .15s,background .15s;opacity:.5;}
 .ai-tile:hover{opacity:.85;border-color:var(--border-strong);}
 .ai-tile .tile-ico{font-size:18px;line-height:1;color:var(--text-3);}
 .ai-tile .tile-label{font-size:10px;font-weight:700;color:var(--text-3);}

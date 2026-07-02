@@ -405,10 +405,7 @@ window._applyRemoteAgentMeta = function(remote){
 };
 function agentSel(code){ return agentAI[code] || (agentAI[code]={used:[],oper:[]}); }
 function toggleAgentAI(code, key){
-  const s=agentSel(code);
-  if(s.used.includes(key)) return;  // 선택된 구현 AI는 고정 — 해제 불가
-  s.used.push(key); if(!s.oper.includes(key)) s.oper.push(key);  // 선택 시 운영(이름 옆 배지)도 함께 표시
-  persistAgentAI(code); renderAgents();
+  return;  // 구현 AI 선택 고정 — 추가 선택·해제 모두 불가 (운영 지정은 ★로만 변경)
 }
 function toggleAgentOper(code, key, ev){
   if(ev) ev.stopPropagation();
@@ -461,7 +458,7 @@ function renderAgents() {
     const tiles = allowedPlats.map(k=>PLAT[k]).map(p=>{
       const on = selUsed.includes(p.key);
       const isOper = selOper.includes(p.key);
-      return `<button type="button" class="ai-tile p-${p.key} ${on?'sel':''}" onclick="toggleAgentAI('${code}','${p.key}')" title="${p.label} — ${on?'사용중 (고정됨)':'미사용 (클릭하여 사용)'}">
+      return `<button type="button" class="ai-tile p-${p.key} ${on?'sel':''}" onclick="toggleAgentAI('${code}','${p.key}')" title="${p.label} — ${on?'사용중 (고정됨)':'미사용 (고정됨)'}">
         ${on?'<span class="tile-check">✓</span>':''}
         ${on?`<span class="tile-star ${isOper?'on':''}" onclick="toggleAgentOper('${code}','${p.key}',event)" title="운영 플랫폼 지정/해제">${isOper?'★':'☆'}</span>`:''}
         <span class="tile-ico">${p.glyph}</span>

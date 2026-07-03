@@ -8,3 +8,7 @@ functions/node_modules/
 
 # 수정 전 로컬 백업본
 backup_*/
+
+# 오프라인/단일파일 생성본 (배포 불필요)
+dashboard_offline.html
+dashboard_standalone.html

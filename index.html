@@ -52,7 +52,7 @@
     <header class="topbar">
       <div class="page-title">
         <h1>AI 활용계획 통합 대시보드</h1>
-        <div class="sub"><span id="topWeek">2026년 4월 5주차</span> · 전체 80개 과제 · 팀원 편집 + 현황 시각화</div>
+        <div class="sub"><span id="topWeek">2026년 4월 5주차</span> · 전체 <span id="topTaskCount">80</span>개 과제 · 팀원 편집 + 현황 시각화</div>
       </div>
       <div class="topbar-right">
         <div class="tb-search">
@@ -75,17 +75,18 @@
 <div id="tab-dashboard" class="tab-content active">
   <div class="kpi-row" style="grid-template-columns:repeat(6,minmax(0,1fr));">
     <div class="kpi-card"><div class="val" id="kpi-total">80</div><div class="lbl">전체 과제</div></div>
-    <div class="kpi-card"><div class="val" id="kpi-started">0</div><div class="lbl">착수 건</div><div class="sub-val" id="kpi-started-pct"></div></div>
+    <div class="kpi-card"><div class="val" id="kpi-started">0</div><div class="lbl">착수 건</div><div class="sub-val" id="kpi-started-pct"></div><div class="kpi-delta" id="kpi-delta-started"></div></div>
     <div class="kpi-card"><div class="val" id="kpi-not">0</div><div class="lbl">미착수 건</div></div>
-    <div class="kpi-card"><div class="val" id="kpi-avg">0%</div><div class="lbl">평균 진척률</div></div>
-    <div class="kpi-card"><div class="val" id="kpi-done">0</div><div class="lbl">완료 건</div><div class="sub-val" id="kpi-done-pct"></div></div>
-    <div class="kpi-card"><div class="val">19</div><div class="lbl">AI 에이전트 수</div></div>
+    <div class="kpi-card"><div class="val" id="kpi-avg">0%</div><div class="lbl">평균 진척률</div><div class="kpi-delta" id="kpi-delta-avg"></div></div>
+    <div class="kpi-card"><div class="val" id="kpi-done">0</div><div class="lbl">완료 건</div><div class="sub-val" id="kpi-done-pct"></div><div class="kpi-delta" id="kpi-delta-done"></div></div>
+    <div class="kpi-card"><div class="val" id="kpi-agents">-</div><div class="lbl">AI 에이전트 수</div></div>
   </div>
   <div class="chart-grid">
-    <div class="chart-card"><h3>착수 현황</h3><div class="chart-wrap" style="height:220px"><canvas id="chartStatus"></canvas></div></div>
-    <div class="chart-card"><h3>SHIFT 유형별 현황</h3><div class="chart-wrap" style="height:220px"><canvas id="chartShift"></canvas></div></div>
-    <div class="chart-card full"><h3>에이전트별 평균 진척률</h3><div class="chart-wrap" id="chartAgentWrap" style="height:280px"><canvas id="chartAgent"></canvas></div></div>
-    <div class="chart-card full"><h3>우선순위 × 착수상태</h3><div class="chart-wrap" style="height:200px"><canvas id="chartPriority"></canvas></div></div>
+    <div class="chart-card full"><h3>⚠️ 일정 리스크</h3><div id="riskCard"></div></div>
+    <div class="chart-card full"><h3>분기별 착수 현황</h3><div class="q-donut-grid" id="quarterStatusGrid"></div></div>
+    <div class="chart-card full" id="chartTrendWrap" style="display:none;"><h3>📈 주차별 추이</h3><div class="chart-wrap" style="height:260px"><canvas id="chartTrend"></canvas></div></div>
+    <div class="chart-card full"><h3>담당자별 착수 현황</h3><div class="chart-wrap" style="height:240px"><canvas id="chartPerson"></canvas></div></div>
+    <div class="chart-card full"><h3>업무영역별 착수 현황</h3><div class="chart-wrap" style="height:260px"><canvas id="chartArea"></canvas></div></div>
     <div class="chart-card full">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
         <h3 style="margin:0;">📋 주차별 진척 이력</h3>
@@ -340,6 +341,7 @@
 
 
 <div class="toast" id="toast"></div>
+<script src="data.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

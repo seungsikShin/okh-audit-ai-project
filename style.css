@@ -88,6 +88,27 @@ p{margin-bottom:1em;}
 .kpi-card .val{font-size:34px;font-weight:700;color:var(--text);letter-spacing:0;line-height:1.1;}
 .kpi-card .lbl{font-size:14px;color:var(--text-2);font-weight:500;line-height:1.4;}
 .kpi-card .sub-val{font-size:13px;color:var(--accent);font-weight:700;line-height:1.2;letter-spacing:0;}
+.kpi-delta{font-size:11px;font-weight:600;line-height:1.2;letter-spacing:0;min-height:13px;}
+.kpi-delta.up{color:#067647;}
+.kpi-delta.down{color:#B42318;}
+.kpi-delta.flat{color:#98A2B3;}
+
+/* 분기별 착수 현황 (미니 도넛) */
+.q-donut-grid{display:flex;gap:14px;flex-wrap:wrap;align-items:stretch;}
+.q-donut-cell{position:relative;flex:1 1 170px;min-width:160px;display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 10px 14px;border:1px solid var(--border);border-radius:12px;background:var(--surface);}
+.q-donut-cell.current{border-color:#BFE8D0;background:#F7FCF9;}
+.q-now-badge{position:absolute;top:10px;right:10px;font-size:10px;font-weight:700;color:#067647;background:#ECFDF3;border:1px solid #ABEFC6;border-radius:999px;padding:2px 8px;}
+.q-donut-wrap{position:relative;width:118px;height:118px;}
+.q-donut-label{font-size:13px;font-weight:700;color:var(--text);}
+.q-donut-rate{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
+.q-rate-pill{font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;color:var(--text-2);}
+.q-rate-pill b{font-weight:700;}
+.q-rate-pill.start{background:#E9F7EF;color:#147B52;}
+.q-rate-pill.prog{background:#EFF6FF;color:#175CD3;}
+.q-donut-sub{font-size:11px;color:var(--text-2);text-align:center;}
+.q-donut-legend{flex-basis:100%;display:flex;gap:16px;justify-content:center;align-items:center;padding-top:6px;font-size:12px;color:var(--text-2);flex-wrap:wrap;}
+.q-donut-legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;}
+.q-legend-note{font-size:11px;color:var(--text-3);}
 
 /* 차트 그리드 */
 .chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}

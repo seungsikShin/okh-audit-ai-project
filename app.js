@@ -553,7 +553,7 @@ const AGENT_OPER_NAME = {
   'A-03':{name:'감사 AI 플랫폼', links:[{url:'http://172.28.88.115:8000/team-dashboard'}]},
   'A-04':{name:'감사실시통합에이전트', links:[
     {label:'GPT', url:'https://chatgpt.com/g/g-6a0177e4ac9c8191963ea3515cce8cab-gongsig-gamsa-silsi-tonghab-eijeonteu'},
-    {label:'AI계', url:'https://aip-works.okfngroup.com/projects/d622c0cc01949b89fc42a6784106c465/apps/TExNQXBwOjZhNDFmYmIwMWM0NjdhNDY3Y2QyMjI5ZA=='}
+    {label:'AI계', url:'https://aip-works.okfngroup.com/projects/d622c0cc01949b89fc42a6784106c465/apps/TExNQXBwOjZhNTYwMGNjMTEyNGUzMzQ3YzIyMGUxZA=='}
   ]},
   'A-05':{name:'클로드 디자인 감사결과 보고서', links:[
     {label:'클로드', url:'https://claude.ai/design/p/6f5cacf8-a86e-4c07-a7d0-9c0188527a54'},

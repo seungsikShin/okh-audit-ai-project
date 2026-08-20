@@ -143,7 +143,7 @@ function renderDashboard() {
     charts['chartPerson'] = new Chart(perCanvas, {
       type:'bar',
       data:{labels:perLabels,datasets:[
-        {label:'착수',data:perLabels.map(p=>perMap[p].착수),backgroundColor:'#147B52',borderRadius:6,maxBarThickness:36},
+        {label:'착수',data:perLabels.map(p=>perMap[p].착수),backgroundColor:'#4F46E5',borderRadius:6,maxBarThickness:36},
         {label:'미착수',data:perLabels.map(p=>perMap[p].미착수),backgroundColor:'#E5E7EB',borderRadius:6,maxBarThickness:36}
       ]},
       options:{responsive:true,maintainAspectRatio:false,
@@ -170,7 +170,7 @@ function renderDashboard() {
     charts['chartArea'] = new Chart(areaCanvas, {
       type:'bar',
       data:{labels:areaLabels,datasets:[
-        {label:'착수',data:areaLabels.map(a=>areaMap[a].착수),backgroundColor:'#147B52',borderRadius:6,maxBarThickness:18},
+        {label:'착수',data:areaLabels.map(a=>areaMap[a].착수),backgroundColor:'#4F46E5',borderRadius:6,maxBarThickness:18},
         {label:'미착수',data:areaLabels.map(a=>areaMap[a].미착수),backgroundColor:'#E5E7EB',borderRadius:6,maxBarThickness:18}
       ]},
       options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
@@ -218,11 +218,11 @@ function renderQuarterStatus() {
         <span class="q-rate-pill start">착수율 <b>${startedPct}%</b></span>
         <span class="q-rate-pill prog">평균진척률 <b>${avgProg}%</b></span>
       </div>
-      <div class="q-donut-sub">완료 <b style="color:#147B52;">${g.완료}</b> · 진행 <b style="color:#2E90FA;">${g.진행}</b> · 미착수 <b>${g.미착수}</b> / ${g.합}건</div>
+      <div class="q-donut-sub">완료 <b style="color:#4F46E5;">${g.완료}</b> · 진행 <b style="color:#0EA5E9;">${g.진행}</b> · 미착수 <b>${g.미착수}</b> / ${g.합}건</div>
     </div>`;
   }).join('') + `<div class="q-donut-legend">
-    <span><i style="background:#147B52"></i>완료</span>
-    <span><i style="background:#5FBD8E"></i>진행 중</span>
+    <span><i style="background:#4F46E5"></i>완료</span>
+    <span><i style="background:#A5B4FC"></i>진행 중</span>
     <span><i style="background:#E5E7EB"></i>미착수</span>
     <span class="q-legend-note">도넛 중앙 = 착수율(완료+진행)</span>
   </div>`;
@@ -246,7 +246,7 @@ function renderQuarterStatus() {
     };
     charts['qd_'+i] = new Chart(document.getElementById('qd_'+i), {
       type:'doughnut',
-      data:{labels:['완료','진행 중','미착수'],datasets:[{data:[g.완료,g.진행,g.미착수],backgroundColor:['#147B52','#5FBD8E','#E5E7EB'],borderWidth:0,hoverOffset:4}]},
+      data:{labels:['완료','진행 중','미착수'],datasets:[{data:[g.완료,g.진행,g.미착수],backgroundColor:['#4F46E5','#A5B4FC','#E5E7EB'],borderWidth:0,hoverOffset:4}]},
       options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{display:false},tooltip:{callbacks:{label(item){return ` ${item.label} ${item.parsed}건 (${g.합?Math.round(item.parsed/g.합*100):0}%)`;}}}}},
       plugins:[centerText]
     });
@@ -357,7 +357,7 @@ function renderRiskCard() {
         <span style="flex:0 0 auto;font-size:11px;font-weight:700;color:#B42318;background:#FEF3F2;border:1px solid #FECDCA;border-radius:999px;padding:2px 8px;">${normalizeTarget(r.목표완료)}</span>
         <span class="${r.착수상태==='착수'?'badge-착수':'badge-미착수'}" style="flex:0 0 auto;">${r.착수상태||'-'}</span>
         <span style="flex:0 0 110px;display:flex;align-items:center;gap:6px;">
-          <span style="flex:1;height:6px;background:#EEF2F0;border-radius:999px;overflow:hidden;"><span style="display:block;height:100%;width:${pct}%;background:${pct>=50?'#F59E0B':'#D92D20'};border-radius:999px;"></span></span>
+          <span style="flex:1;height:6px;background:#EEF0FE;border-radius:999px;overflow:hidden;"><span style="display:block;height:100%;width:${pct}%;background:${pct>=50?'#F59E0B':'#D92D20'};border-radius:999px;"></span></span>
           <span style="font-size:11px;font-weight:700;color:#475467;width:32px;text-align:right;">${pct}%</span>
         </span>
       </div>
@@ -444,12 +444,12 @@ function renderSchedule() {
         // 내용
         const midY=y+H/2; let tx=x+padX;
         ctx.textBaseline='middle'; ctx.textAlign='left';
-        ctx.fillStyle='#10B981'; ctx.beginPath(); ctx.arc(tx+dot/2,midY,dot/2,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle='#818CF8'; ctx.beginPath(); ctx.arc(tx+dot/2,midY,dot/2,0,Math.PI*2); ctx.fill();
         tx+=dot+dotGap; ctx.fillStyle='#067647'; ctx.fillText(sTxt,tx,midY);
         tx+=ctx.measureText(sTxt).width+gap;
         ctx.strokeStyle='#EAECF0'; ctx.beginPath(); ctx.moveTo(tx,y+5); ctx.lineTo(tx,y+H-5); ctx.stroke();
         tx+=1+gap;
-        ctx.fillStyle='#2E90FA'; ctx.beginPath(); ctx.arc(tx+dot/2,midY,dot/2,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle='#0EA5E9'; ctx.beginPath(); ctx.arc(tx+dot/2,midY,dot/2,0,Math.PI*2); ctx.fill();
         tx+=dot+dotGap; ctx.fillStyle='#175CD3'; ctx.fillText(pTxt,tx,midY);
       });
       ctx.restore();
@@ -460,7 +460,7 @@ function renderSchedule() {
   charts['chartQuarter'] = new Chart(document.getElementById('chartQuarter'), {
     type:'bar',
     data:{labels:qs,datasets:[
-      {label:'착수',data:qs.map(q=>qMap[q].착수),backgroundColor:'#10B981',borderRadius:6,maxBarThickness:40},
+      {label:'착수',data:qs.map(q=>qMap[q].착수),backgroundColor:'#818CF8',borderRadius:6,maxBarThickness:40},
       {label:'미착수',data:qs.map(q=>qMap[q].미착수),backgroundColor:'#E5E7EB',borderRadius:6,maxBarThickness:40}
     ]},
     options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:8}},plugins:{legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'circle',font:{family:"'Pretendard',sans-serif",size:12},color:'#475467',padding:14}},tooltip:{callbacks:{title(items){return qs[items[0].dataIndex];},footer(items){const i=items[0].dataIndex;return `착수율 ${startRates[i]}%  ·  평균 진척률 ${avgProgs[i]}%`;}}}},scales:{x:{grid:{display:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#98A2B3'}},y:{suggestedMax:Math.ceil(maxVal*1.25),grid:{color:'#F3F4F6',drawBorder:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#98A2B3'}}}},
@@ -472,13 +472,13 @@ function renderSchedule() {
   listDiv.innerHTML = qs.map((q,qi)=>`
     <div style="margin-bottom:18px;">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-        <span style="display:inline-flex;align-items:center;gap:8px;font-weight:700;color:#147B52;padding:6px 14px;background:#E9F7EF;border:1px solid #BFE8D0;border-radius:999px;font-size:13px;letter-spacing:0;">${q} <span style="color:#1B8F61;">·</span> <span style="color:#475467;font-weight:600;">${qMap[q].items.length}건</span></span>
-        <span style="font-size:12px;font-weight:600;color:#475467;padding:5px 11px;background:#F2F4F7;border:1px solid #EAECF0;border-radius:999px;">착수율 <span style="color:#147B52;font-weight:700;">${startRates[qi]}%</span></span>
-        <span style="font-size:12px;font-weight:600;color:#475467;padding:5px 11px;background:#F2F4F7;border:1px solid #EAECF0;border-radius:999px;">평균 진척률 <span style="color:#147B52;font-weight:700;">${avgProgs[qi]}%</span></span>
+        <span style="display:inline-flex;align-items:center;gap:8px;font-weight:700;color:#4F46E5;padding:6px 14px;background:#EEF0FE;border:1px solid #C7CBFB;border-radius:999px;font-size:13px;letter-spacing:0;">${q} <span style="color:#3E35C9;">·</span> <span style="color:#475467;font-weight:600;">${qMap[q].items.length}건</span></span>
+        <span style="font-size:12px;font-weight:600;color:#475467;padding:5px 11px;background:#F2F4F7;border:1px solid #EAECF0;border-radius:999px;">착수율 <span style="color:#4F46E5;font-weight:700;">${startRates[qi]}%</span></span>
+        <span style="font-size:12px;font-weight:600;color:#475467;padding:5px 11px;background:#F2F4F7;border:1px solid #EAECF0;border-radius:999px;">평균 진척률 <span style="color:#4F46E5;font-weight:700;">${avgProgs[qi]}%</span></span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;">
         ${qMap[q].items.map(it=>{const pct=Math.round((it.진척률||0)*100);return `
-          <div style="background:#fff;border:1px solid #EAECF0;border-radius:12px;padding:12px 14px;font-size:13px;cursor:pointer;transition:all .15s;" onclick="goToTask(${it.no})" onmouseover="this.style.boxShadow='0 4px 12px rgba(20,123,82,.12)';this.style.borderColor='#BFE8D0';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='';this.style.borderColor='#EAECF0';this.style.transform=''">
+          <div style="background:#fff;border:1px solid #EAECF0;border-radius:12px;padding:12px 14px;font-size:13px;cursor:pointer;transition:all .15s;" onclick="goToTask(${it.no})" onmouseover="this.style.boxShadow='0 4px 12px rgba(20,123,82,.12)';this.style.borderColor='#C7CBFB';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='';this.style.borderColor='#EAECF0';this.style.transform=''">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
               <span style="color:#667085;font-weight:600;">No.${it.no}</span>
               <span class="${it.착수상태==='착수'?'badge-착수':'badge-미착수'}">${it.착수상태||'-'}</span>
@@ -486,10 +486,10 @@ function renderSchedule() {
             <div style="color:#101828;font-size:14px;font-weight:500;line-height:1.5;">${it.태스크.split('\n')[0]}</div>
             <div style="margin-top:6px;color:#475467;">${it.담당자||'-'}</div>
             <div style="margin-top:8px;">
-              <div style="display:flex;justify-content:space-between;font-size:11px;color:#667085;margin-bottom:3px;"><span>진척률</span><span style="color:#147B52;font-weight:700;">${pct}%</span></div>
-              <div style="height:6px;background:#EEF2F0;border-radius:999px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:#147B52;border-radius:999px;"></div></div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:#667085;margin-bottom:3px;"><span>진척률</span><span style="color:#4F46E5;font-weight:700;">${pct}%</span></div>
+              <div style="height:6px;background:#EEF0FE;border-radius:999px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:#4F46E5;border-radius:999px;"></div></div>
             </div>
-            <div style="margin-top:8px;color:#147B52;font-size:11px;font-weight:600;letter-spacing:0;">→ 과제목록에서 보기</div>
+            <div style="margin-top:8px;color:#4F46E5;font-size:11px;font-weight:600;letter-spacing:0;">→ 과제목록에서 보기</div>
           </div>`;}).join('')}
       </div>
     </div>`).join('');
@@ -710,7 +710,7 @@ function renderAgents() {
         <span style="color:var(--text-3);">미착수 <b>${v.미착수}</b></span>
       </div>
       <div class="ag-bar-wrap"><div class="ag-bar-fill" style="width:${avg}%"></div></div>
-      <div class="ag-stat"><span>평균 진척률</span><span style="font-weight:700;color:#147B52;">${avg}%</span></div>
+      <div class="ag-stat"><span>평균 진척률</span><span style="font-weight:700;color:#4F46E5;">${avg}%</span></div>
       ${deadlineHtml}
     </div>`;
   }).join('');
@@ -911,7 +911,7 @@ function renderPlanCells(r) {
   if (!p.matched) {
     // AI 미활용 등 패턴 없는 행: As-Is에 원문, To-Be에 미활용 배지
     asisCell = `<div class="cell-text" style="font-size:13px;color:var(--text-2);">${p.asis || '-'}</div>`;
-    tobeCell = `<span style="background:#EEF3EF;color:#475467;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700;">AI 미활용</span>`;
+    tobeCell = `<span style="background:#EEF0FE;color:#475467;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700;">AI 미활용</span>`;
   } else {
     asisCell = `<div class="cell-text" style="font-size:13px;color:var(--text-2);">${p.asis}</div>`;
     if (p.structured) {
@@ -944,14 +944,14 @@ function renderTable(rows) {
     const isModified = changes[r.no]!==undefined;
     const pct = Math.round(r.진척률*100);
     // SHIFT 배지
-    const shiftColors = {S:'#10B981',H:'#0EA5E9',I:'#21A66E',T:'#F59E0B',SH:'#147B52',F:'#64748B'};
+    const shiftColors = {S:'#818CF8',H:'#0EA5E9',I:'#6366F1',T:'#F59E0B',SH:'#4F46E5',F:'#64748B'};
     const shiftBadge = r.shift ? `<span style="background:${shiftColors[r.shift]||'#999'};color:#fff;border-radius:10px;padding:2px 7px;font-size:11px;font-weight:700;letter-spacing:0;">${r.shift}</span>` : '<span style="color:#667085;font-size:11px;">-</span>';
     // 우선순위 배지
     const priorityColors = {'상':'#EF4444','중':'#F59E0B','하':'#94A3B8'};
     const priorityBadge = r.우선순위 ? `<span style="background:${priorityColors[r.우선순위]||'#999'};color:#fff;border-radius:10px;padding:2px 7px;font-size:11px;font-weight:700;letter-spacing:0;">${r.우선순위}</span>` : '<span style="color:#667085;font-size:11px;">-</span>';
     // AI 활용 여부 배지
     const isAiUse = isAiUseRow(r);
-    const aiUseBadge = !r.활용계획 || r.활용계획.trim()==='' ? '<span style="color:#667085;font-size:11px;">-</span>' : isAiUse ? '<span style="background:#e3f2fd;color:#1565c0;border-radius:10px;padding:2px 7px;font-size:11px;font-weight:700;letter-spacing:0;">AI 활용</span>' : '<span style="background:#EEF3EF;color:#475467;border-radius:10px;padding:2px 7px;font-size:11px;font-weight:700;letter-spacing:0;">AI 미활용</span>';
+    const aiUseBadge = !r.활용계획 || r.활용계획.trim()==='' ? '<span style="color:#667085;font-size:11px;">-</span>' : isAiUse ? '<span style="background:#e3f2fd;color:#1565c0;border-radius:10px;padding:2px 7px;font-size:11px;font-weight:700;letter-spacing:0;">AI 활용</span>' : '<span style="background:#EEF0FE;color:#475467;border-radius:10px;padding:2px 7px;font-size:11px;font-weight:700;letter-spacing:0;">AI 미활용</span>';
     const statusBadge = r.착수상태==='착수'?`<span class="badge-착수">착수</span>`:r.착수상태==='미착수'?`<span class="badge-미착수">미착수</span>`:`<span class="badge-empty">-</span>`;
     const tr = document.createElement('tr');
     if(isModified) tr.classList.add('modified');
@@ -1428,6 +1428,8 @@ function renderWeeklyChart() {
   renderWeeklyNav();
   renderTrendChart();
   renderKpiDeltas();
+  // 재편 트랙 추이는 이 주차 이력을 재집계해 그린다 (이력 도착 후 재렌더 필요)
+  if (typeof window._v2RenderTrend === 'function') window._v2RenderTrend();
   const keys = Object.keys(weeklyHistory).sort().reverse(); // 최신 주차가 위로
   const el = document.getElementById('weeklyTable');
   if (!el) return;
@@ -1438,15 +1440,15 @@ function renderWeeklyChart() {
   const items = keys.map((k, i) => {
     const s = weeklyHistory[k];
     const isLatest = i === 0;
-    return `<div style="display:flex;align-items:center;gap:0;padding:12px 14px;border-bottom:1px solid #EAECF0;background:${isLatest?'#E9F7EF':'#fff'};${isLatest?'border-left:3px solid #147B52;':'border-left:3px solid transparent;'}">
+    return `<div style="display:flex;align-items:center;gap:0;padding:12px 14px;border-bottom:1px solid #EAECF0;background:${isLatest?'#EEF0FE':'#fff'};${isLatest?'border-left:3px solid #4F46E5;':'border-left:3px solid transparent;'}">
       <div style="width:130px;font-weight:${isLatest?'700':'500'};font-size:13px;color:#101828;">
-        ${s.label}${isLatest?' <span style="font-size:11px;color:#147B52;">●</span>':''}
+        ${s.label}${isLatest?' <span style="font-size:11px;color:#4F46E5;">●</span>':''}
       </div>
       <div style="flex:1;display:flex;gap:24px;flex-wrap:wrap;">
-        <span style="font-size:13px;color:#475467;">착수 <strong style="color:#147B52;">${s.착수}건</strong></span>
+        <span style="font-size:13px;color:#475467;">착수 <strong style="color:#4F46E5;">${s.착수}건</strong></span>
         <span style="font-size:13px;color:#475467;">미착수 <strong style="color:#667085;">${s.미착수}건</strong></span>
-        <span style="font-size:13px;color:#475467;">평균진척률 <strong style="color:#147B52;">${s.평균진척률}%</strong></span>
-        <span style="font-size:13px;color:#475467;">완료 <strong style="color:#147B52;">${s.완료}건 (${s.완료율}%)</strong></span>
+        <span style="font-size:13px;color:#475467;">평균진척률 <strong style="color:#4F46E5;">${s.평균진척률}%</strong></span>
+        <span style="font-size:13px;color:#475467;">완료 <strong style="color:#4F46E5;">${s.완료}건 (${s.완료율}%)</strong></span>
       </div>
       <div style="font-size:11px;color:#667085;white-space:nowrap;">${s.savedAt||''}</div>
     </div>`;
@@ -1470,9 +1472,9 @@ function renderTrendChart() {
   charts['chartTrend'] = new Chart(canvas, {
     type: 'line',
     data: { labels, datasets: [
-      { label:'평균 진척률(%)', data:avgs, yAxisID:'y', borderColor:'#147B52', backgroundColor:'rgba(20,123,82,.08)', fill:true, tension:.3, pointRadius:4, pointBackgroundColor:'#147B52', borderWidth:2 },
-      { label:'착수(건)', data:starts, yAxisID:'y2', borderColor:'#2E90FA', backgroundColor:'#2E90FA', fill:false, tension:.3, pointRadius:3, borderWidth:2 },
-      { label:'완료(건)', data:dones, yAxisID:'y2', borderColor:'#F59E0B', backgroundColor:'#F59E0B', fill:false, tension:.3, pointRadius:3, borderWidth:2 }
+      { label:'평균 진척률(%)', data:avgs, yAxisID:'y', borderColor:'#F59E0B', backgroundColor:'rgba(245,158,11,.10)', fill:true, tension:.3, pointRadius:4, pointBackgroundColor:'#F59E0B', borderWidth:2 },
+      { label:'착수(건)', data:starts, yAxisID:'y2', borderColor:'#4F46E5', backgroundColor:'#4F46E5', fill:false, tension:.3, pointRadius:3, borderWidth:2 },
+      { label:'완료(건)', data:dones, yAxisID:'y2', borderColor:'#EC4899', backgroundColor:'#EC4899', fill:false, tension:.3, pointRadius:3, borderWidth:2 }
     ]},
     options: {
       responsive:true, maintainAspectRatio:false,
@@ -1553,8 +1555,8 @@ function goToTask(no) {
       rows.forEach(tr => {
         const noCell = tr.querySelector('.cell-no');
         if (noCell && parseInt(noCell.textContent) === no) {
-          tr.style.background = '#E9F7EF';
-          tr.style.outline = '2px solid #147B52';
+          tr.style.background = '#EEF0FE';
+          tr.style.outline = '2px solid #4F46E5';
           tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
           setTimeout(() => { tr.style.background=''; tr.style.outline=''; }, 3000);
         }

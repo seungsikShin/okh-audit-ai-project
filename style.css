@@ -78,7 +78,7 @@ p{margin-bottom:1em;}
 .tab.active .ico{filter:none;}
 .sidebar .foot{margin-top:auto;padding:14px 16px;border-top:1px solid var(--border);}
 .user-card{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:var(--surface-2);}
-.user-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#10B981,#0EA5E9);color:#fff;display:grid;place-items:center;font-weight:700;font-size:12px;}
+.user-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#818CF8,#0EA5E9);color:#fff;display:grid;place-items:center;font-weight:700;font-size:12px;}
 .user-info{display:flex;flex-direction:column;line-height:1.2;}
 .user-info .nm{font-size:12px;font-weight:600;color:var(--text);}
 .user-info .role{font-size:11px;color:var(--text-2);}
@@ -135,15 +135,15 @@ body[data-track="legacy"] .tb-track .dot{background:var(--text-3);}
 /* 분기별 착수 현황 (미니 도넛) */
 .q-donut-grid{display:flex;gap:14px;flex-wrap:wrap;align-items:stretch;}
 .q-donut-cell{position:relative;flex:1 1 170px;min-width:160px;display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 10px 14px;border:1px solid var(--border);border-radius:12px;background:var(--surface);}
-.q-donut-cell.current{border-color:#BFE8D0;background:#F7FCF9;}
+.q-donut-cell.current{border-color:#C7CBFB;background:#F8F8FE;}
 .q-now-badge{position:absolute;top:10px;right:10px;font-size:10px;font-weight:700;color:#067647;background:#ECFDF3;border:1px solid #ABEFC6;border-radius:999px;padding:2px 8px;}
 .q-donut-wrap{position:relative;width:118px;height:118px;}
 .q-donut-label{font-size:13px;font-weight:700;color:var(--text);}
 .q-donut-rate{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
 .q-rate-pill{font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;color:var(--text-2);}
 .q-rate-pill b{font-weight:700;}
-.q-rate-pill.start{background:#E9F7EF;color:#147B52;}
-.q-rate-pill.prog{background:#EFF6FF;color:#175CD3;}
+.q-rate-pill.start{background:#EEF0FE;color:#4F46E5;}
+.q-rate-pill.prog{background:#FDF0DC;color:#B45309;}
 .q-donut-sub{font-size:11px;color:var(--text-2);text-align:center;}
 .q-donut-legend{flex-basis:100%;display:flex;gap:16px;justify-content:center;align-items:center;padding-top:6px;font-size:12px;color:var(--text-2);flex-wrap:wrap;}
 .q-donut-legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;}
@@ -246,7 +246,7 @@ td.cell-no{width:38px;text-align:center;color:var(--text-3);font-weight:600;}
 .agent-card h4{font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border);letter-spacing:0;}
 .agent-card .ag-stat{display:flex;justify-content:space-between;font-size:12px;color:var(--text-2);margin-bottom:8px;}
 .agent-card .ag-bar-wrap{height:6px;background:var(--surface-hover);border-radius:99px;overflow:hidden;margin-bottom:10px;}
-.agent-card .ag-bar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#147B52,#21A66E);}
+.agent-card .ag-bar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#4F46E5,#6366F1);}
 .agent-card .ag-tasks{font-size:11px;color:var(--text-2);}
 .agent-card .ag-summary{font-size:12px;color:var(--text-2);line-height:1.5;margin-bottom:12px;min-height:18px;}
 /* ── 에이전트별 — 운영 플랫폼 + 구현 AI 선택 ── */
@@ -558,7 +558,7 @@ body.snapshot-mode #weeklyNav .tab.active{background:#FEF3C7;color:#92400E;}
 .v2-agent-head h3{font-size:14px;font-weight:700;letter-spacing:-.008em;margin:0;word-break:keep-all;}
 .v2-agent-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);
   margin:14px 0;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;}
-.v2-agent-stats > div{background:var(--surface-2);padding:9px 10px;display:flex;flex-direction:column;gap:2px;}
+.v2-agent-stats > div{background:var(--surface-2);padding:9px 10px;display:flex;flex-direction:column;gap:2px;align-items:center;text-align:center;}
 .v2-agent-stats .k{font-size:10.5px;color:var(--text-3);}
 .v2-agent-stats .v{font-size:16px;font-weight:700;color:var(--text);letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
 .v2-agent-stats .v.accent{color:var(--primary);}
@@ -657,3 +657,115 @@ body.snapshot-mode #weeklyNav .tab.active{background:#FEF3C7;color:#92400E;}
   .v2-ba-origins,.v2-ba-arrow{display:none;}
   .v2-ba-dest{grid-column:2;}
 }
+
+/* ── 재편 트랙: 에이전트 운영 플랫폼 배지 ─────────────────── */
+.v2-plat{display:flex;flex-wrap:wrap;gap:5px;align-items:center;}
+.oper-badge.p-tyro{background:#F5EEE9;color:#5A3524;border-color:#DCC8BB;}
+.oper-badge.p-tbd{background:var(--surface-hover);color:var(--text-3);border-color:var(--border);font-weight:600;}
+.v2-agent .v2-plat{margin:-2px 0 12px;}
+.v2-card-id{flex-wrap:wrap;row-gap:6px;}
+
+/* ══════════════════════════════════════════════════════════════
+   레이아웃 리프레시 — 소프트 카드 대시보드
+   참조 레이아웃(연한 캔버스 · 흰 라운드 카드 · 라벨 위 / 숫자 아래 KPI)을
+   적용한다. 강조색은 기존 브랜드 그린을 그대로 쓴다.
+   ══════════════════════════════════════════════════════════════ */
+:root{
+  --bg:#F4F6F9;
+  --border:#EDF0F4;--border-strong:#DCE1E9;
+  --radius-sm:10px;--radius:16px;--radius-lg:16px;
+  --shadow-sm:0 1px 2px rgba(16,24,40,.04);
+  --shadow:0 2px 6px rgba(16,24,40,.05),0 1px 2px rgba(16,24,40,.03);
+  --shadow-lg:0 20px 48px rgba(16,24,40,.12),0 6px 14px rgba(16,24,40,.05);
+  --topbar-h:68px;--sidebar-w:244px;
+}
+
+/* ── 사이드바: 경계선 대신 여백으로 나눈다 ─────────────────── */
+.sidebar{border-right:none;box-shadow:1px 0 0 var(--border);}
+.sidebar .brand{padding:22px 20px 18px;}
+.sidebar .brand-logo{border-radius:11px;width:34px;height:34px;}
+.sidebar .nav-section{padding:6px 14px;}
+.tab{padding:10px 13px;border-radius:11px;font-size:13.5px;gap:11px;}
+.tab.active{box-shadow:none;background:var(--primary-soft);color:var(--primary-hover);font-weight:600;}
+
+/* ── 상단바 ────────────────────────────────────────────────── */
+.topbar{background:var(--surface);backdrop-filter:none;-webkit-backdrop-filter:none;
+  border-bottom:1px solid var(--border);padding:0 30px;}
+.topbar .page-title h1{font-size:20px;}
+.tb-search{width:280px;padding:9px 15px;background:var(--surface-2);border-color:transparent;}
+.tb-search:focus-within{background:var(--surface);}
+
+/* ── KPI 카드: 라벨 위 · 숫자 아래 · 우상단 아이콘 칩 ───────── */
+.kpi-card{position:relative;padding:18px 20px 20px;gap:0;border-radius:var(--radius);
+  box-shadow:var(--shadow-sm);border-color:var(--border);}
+.kpi-card:hover{box-shadow:var(--shadow);border-color:var(--border);transform:translateY(-1px);}
+.kpi-card .lbl{order:1;font-size:13px;color:var(--text-2);font-weight:600;padding-right:38px;}
+.kpi-card .val{order:2;font-size:32px;margin-top:10px;letter-spacing:-.025em;}
+.kpi-card .sub-val{order:3;margin-top:7px;font-size:12px;}
+.kpi-ico{position:absolute;top:16px;right:16px;width:30px;height:30px;border-radius:9px;
+  display:grid;place-items:center;font-size:14px;line-height:1;
+  background:var(--primary-soft);color:var(--primary);}
+.kpi-card.accent{background:var(--surface);border-color:var(--primary);
+  box-shadow:0 0 0 1px var(--primary) inset,var(--shadow-sm);}
+.kpi-card.accent .kpi-ico{background:var(--primary);color:#fff;}
+
+/* ── 패널·차트 카드 ────────────────────────────────────────── */
+.chart-card{border-radius:var(--radius);padding:20px 22px 22px;border-color:var(--border);
+  box-shadow:var(--shadow-sm);margin-bottom:16px;}
+.chart-card h3{border-bottom:none;padding-bottom:0;margin-bottom:16px;font-size:15px;}
+
+/* ── 재편 트랙 카드 ────────────────────────────────────────── */
+.v2-card,.v2-agent{border-radius:var(--radius);border-color:var(--border);box-shadow:var(--shadow-sm);}
+.v2-card:hover,.v2-agent:hover{box-shadow:var(--shadow);}
+.stat-chip{border-radius:var(--radius-pill);border-color:var(--border);padding:7px 14px;}
+
+/* ── 강조색: 브랜드 그린 → 블루 ────────────────────────────── */
+:root{
+  --primary:#4F46E5;--primary-hover:#3E35C9;--primary-soft:#EEF0FE;
+  --primary-ring:rgba(79,70,229,.18);
+  --accent:#6366F1;--accent-soft:#E8E9FD;
+}
+
+/* ── 재편: 에이전트별 평균 진척률 (퍼센트 목록) ──────────────── */
+.v2-pct-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1px;
+  background:var(--border);border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;}
+.v2-pct-cell{background:var(--surface);display:flex;align-items:center;gap:9px;padding:9px 13px;min-width:0;}
+.v2-pct-code{font-size:10.5px;font-weight:700;color:var(--primary);background:var(--primary-soft);
+  border-radius:5px;padding:2px 6px;flex-shrink:0;letter-spacing:.01em;}
+.v2-pct-name{font-size:12.5px;color:var(--text-2);flex:1;min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;}
+.v2-pct-val{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;flex-shrink:0;
+  min-width:44px;text-align:right;}
+.v2-pct-val.full{color:var(--primary);}
+.v2-pct-val.on{color:var(--text);}
+.v2-pct-val.zero,.v2-pct-val.none{color:var(--text-3);font-weight:600;}
+.v2-trend-note{font-size:11.5px;color:var(--text-3);}
+
+/* ── 재편: 이중원 도넛 (바깥=착수 구성 · 안쪽=평균 진척률) ──── */
+.v2-donut-grid .q-donut-wrap{width:134px;height:134px;}
+.v2-donut-grid .q-donut-cell{flex:1 1 190px;min-width:180px;}
+
+/* ══════════════════════════════════════════════════════════════
+   팔레트 A — 인디고 + 앰버
+   · 인디고 = 강조 / 완료      · 연인디고 = 진행 중
+   · 앰버   = 평균 진척률 전용 · 스카이 / 핑크 = 보조 지표
+   ══════════════════════════════════════════════════════════════ */
+:root{
+  --primary:#4F46E5;--primary-hover:#3E35C9;--primary-soft:#EEF0FE;
+  --primary-ring:rgba(79,70,229,.18);
+  --accent:#6366F1;--accent-soft:#E8E9FD;
+  --amber:#F59E0B;--amber-deep:#B45309;--amber-soft:#FDF0DC;
+  --sky:#0EA5E9;--pink:#EC4899;
+}
+
+/* KPI 아이콘 칩 — 카드마다 다른 색으로 돌린다 */
+.kpi-row .kpi-card:nth-child(4n+1) .kpi-ico{background:#EEF0FE;color:#4F46E5;}
+.kpi-row .kpi-card:nth-child(4n+2) .kpi-ico{background:#FDF0DC;color:#B45309;}
+.kpi-row .kpi-card:nth-child(4n+3) .kpi-ico{background:#E0F2FE;color:#0284C7;}
+.kpi-row .kpi-card:nth-child(4n+4) .kpi-ico{background:#FCE7F3;color:#DB2777;}
+.kpi-row .kpi-card.accent .kpi-ico{background:#F59E0B;color:#fff;}
+.kpi-card.accent{border-color:#F59E0B;box-shadow:0 0 0 1px #F59E0B inset,var(--shadow-sm);}
+.kpi-card.accent .val{color:#B45309;}
+
+/* 진척률 100% 표기는 앰버로 통일 */
+.v2-pct-val.full{color:#B45309;}

@@ -30,7 +30,7 @@ const V2_ACTION_META = {
   '수기유지': { tone: 'mute', desc: 'As-Is·To-Be 모두 AI 미활용. 수기 유지' }
 };
 
-const V2_PALETTE = ['#147B52','#1B8F61','#3FA97F','#67C29B','#0EA5E9','#6366F1',
+const V2_PALETTE = ['#4F46E5','#3E35C9','#3FA97F','#67C29B','#0EA5E9','#6366F1',
                     '#F59E0B','#EF4444','#8B5CF6','#14B8A6','#F97316','#64748B'];
 
 /* ── 조회 유틸 ─────────────────────────────────────────────── */
@@ -133,9 +133,10 @@ function renderV2Dashboard() {
   set('v2k-absorbed-sub', '원과제 80건 중');
 
   renderV2Rollup();
-  renderV2AgentChart();
+  renderV2QuarterStatus();
+  renderV2Trend();
+  renderV2AgentPct();
   renderV2PersonChart();
-  renderV2QuarterChart();
   renderV2Ledger();
 }
 
@@ -177,41 +178,22 @@ function v2ChartFont(size) { return { family: "'Pretendard',sans-serif", size: s
 function v2Muted() { return getComputedStyle(document.documentElement).getPropertyValue('--text-3').trim() || '#667085'; }
 function v2Grid() { return getComputedStyle(document.documentElement).getPropertyValue('--grid').trim() || '#F3F4F6'; }
 
-function renderV2AgentChart() {
-  const cv = document.getElementById('v2ChartAgent');
-  if (!cv) return;
-  v2DestroyChart('agent');
-  const rows = V2_AGENTS.map(a => {
+/** 에이전트별 평균 진척률 — 막대 없이 퍼센트만 조밀하게 */
+function renderV2AgentPct() {
+  const wrap = document.getElementById('v2AgentPctGrid');
+  if (!wrap) return;
+  wrap.innerHTML = V2_AGENTS.map(a => {
     const ts = v2data.filter(t => t.agentNo === a.no);
     const scored = ts.filter(t => !t.planned);
-    return {
-      label: a.code + ' ' + a.name,
-      count: ts.length,
-      avg: scored.length ? Math.round(scored.reduce((s, t) => s + t.progress, 0) / scored.length) : 0
-    };
-  });
-  v2charts.agent = new Chart(cv, {
-    type: 'bar',
-    data: {
-      labels: rows.map(r => r.label),
-      datasets: [{
-        label: '평균 진척률(%)', data: rows.map(r => r.avg),
-        backgroundColor: rows.map(r => r.avg >= 100 ? '#147B52' : r.avg > 0 ? '#3FA97F' : '#D0D5DD'),
-        borderRadius: 4, barThickness: 14
-      }]
-    },
-    options: {
-      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { footer: items => '과제 ' + rows[items[0].dataIndex].count + '건' } }
-      },
-      scales: {
-        x: { max: 100, grid: { color: v2Grid(), drawBorder: false }, ticks: { font: v2ChartFont(), color: v2Muted(), callback: v => v + '%' } },
-        y: { grid: { display: false }, ticks: { font: v2ChartFont(11), color: v2Muted() } }
-      }
-    }
-  });
+    const avg = scored.length ? Math.round(scored.reduce((s, t) => s + t.progress, 0) / scored.length) : null;
+    const cls = avg === null ? 'none' : avg >= 100 ? 'full' : avg > 0 ? 'on' : 'zero';
+    const note = scored.length < ts.length ? ' · 권한대기 ' + (ts.length - scored.length) + '건 제외' : '';
+    return `<div class="v2-pct-cell" title="과제 ${ts.length}건${note}">
+      <span class="v2-pct-code">${a.code}</span>
+      <span class="v2-pct-name">${escapeHtml(a.name)}</span>
+      <span class="v2-pct-val ${cls}">${avg === null ? '—' : avg + '%'}</span>
+    </div>`;
+  }).join('');
 }
 
 function renderV2PersonChart() {
@@ -230,7 +212,7 @@ function renderV2PersonChart() {
     data: {
       labels: names,
       datasets: [
-        { label: '담당 과제 수', data: names.map(n => map[n].n), backgroundColor: '#147B52', borderRadius: 4, yAxisID: 'y', barThickness: 26 },
+        { label: '담당 과제 수', data: names.map(n => map[n].n), backgroundColor: '#4F46E5', borderRadius: 4, yAxisID: 'y', barThickness: 26 },
         { label: '평균 진척률(%)', type: 'line', data: names.map(n => Math.round(map[n].sum / map[n].n)), borderColor: '#F59E0B', backgroundColor: '#F59E0B', yAxisID: 'y1', tension: .3, pointRadius: 4, borderWidth: 2 }
       ]
     },
@@ -246,37 +228,170 @@ function renderV2PersonChart() {
   });
 }
 
-function renderV2QuarterChart() {
-  const cv = document.getElementById('v2ChartQuarter');
-  if (!cv) return;
-  v2DestroyChart('quarter');
-  const order = ['2026 Q2', '2026 Q3', '2026 Q4', '미정'];
-  const map = {}; order.forEach(q => map[q] = { 착수: 0, 미착수: 0 });
-  v2data.forEach(t => {
-    const q = order.includes(t.target) ? t.target : '미정';
-    map[q][t.status === '착수' ? '착수' : '미착수']++;
+/** 목표 분기별 착수 현황 — 분기당 미니 도넛 (과거 트랙과 동일 형식) */
+function renderV2QuarterStatus() {
+  const grid = document.getElementById('v2QuarterStatusGrid');
+  if (!grid) return;
+  Object.keys(v2charts).filter(k => k.startsWith('qd_')).forEach(v2DestroyChart);
+
+  const qMap = {};
+  v2Scored().forEach(t => {
+    const q = (t.target || '').trim() || '미지정';
+    if (!qMap[q]) qMap[q] = { 완료: 0, 진행: 0, 미착수: 0, 합: 0, 진척합: 0 };
+    const g = qMap[q];
+    g.합++; g.진척합 += (t.progress || 0);
+    if (t.progress >= 100) g.완료++;
+    else if (t.status === '착수') g.진행++;
+    else g.미착수++;
   });
-  v2charts.quarter = new Chart(cv, {
-    type: 'bar',
+  const qs = Object.keys(qMap).sort((a, b) => a === '미지정' ? 1 : b === '미지정' ? -1 : a.localeCompare(b));
+  if (!qs.length) { grid.innerHTML = ''; return; }
+  grid.classList.add('v2-donut-grid');
+
+  const now = new Date();
+  const curQ = `${now.getFullYear()} Q${Math.floor(now.getMonth() / 3) + 1}`;
+
+  grid.innerHTML = qs.map((q, i) => {
+    const g = qMap[q];
+    const isCur = q === curQ;
+    const startedPct = g.합 ? Math.round((g.완료 + g.진행) / g.합 * 100) : 0;
+    const avgProg = g.합 ? Math.round(g.진척합 / g.합) : 0;
+    return `<div class="q-donut-cell${isCur ? ' current' : ''}">
+      ${isCur ? '<span class="q-now-badge">이번 분기</span>' : ''}
+      <div class="q-donut-wrap"><canvas id="v2qd_${i}"></canvas></div>
+      <div class="q-donut-label">${escapeHtml(q)}</div>
+      <div class="q-donut-rate">
+        <span class="q-rate-pill start">착수율 <b>${startedPct}%</b></span>
+        <span class="q-rate-pill prog">평균진척률 <b>${avgProg}%</b></span>
+      </div>
+      <div class="q-donut-sub">완료 <b style="color:#4F46E5;">${g.완료}</b> · 진행 <b style="color:#0EA5E9;">${g.진행}</b> · 미착수 <b>${g.미착수}</b> / ${g.합}건</div>
+    </div>`;
+  }).join('') + `<div class="q-donut-legend">
+    <span><i style="background:#4F46E5"></i>완료</span>
+    <span><i style="background:#A5B4FC"></i>진행 중</span>
+    <span><i style="background:#E5E7EB"></i>미착수</span>
+    <span><i style="background:#F59E0B"></i>평균 진척률 (안쪽 링)</span>
+    <span class="q-legend-note">바깥 링 = 착수 구성 · 안쪽 링 = 평균 진척률 · 권한대기 과제 제외</span>
+  </div>`;
+
+  qs.forEach((q, i) => {
+    const g = qMap[q];
+    const startedPct = g.합 ? Math.round((g.완료 + g.진행) / g.합 * 100) : 0;
+    const avgProg = g.합 ? Math.round(g.진척합 / g.합) : 0;
+    const cv = document.getElementById('v2qd_' + i);
+    if (!cv) return;
+    v2charts['qd_' + i] = new Chart(cv, {
+      type: 'doughnut',
+      data: {
+        datasets: [
+          // 바깥 링 — 착수 구성 (완료 / 진행 / 미착수)
+          {
+            label: '착수 구성',
+            data: [g.완료, g.진행, g.미착수],
+            backgroundColor: ['#4F46E5', '#A5B4FC', '#E5E7EB'],
+            borderWidth: 0, weight: 1, hoverOffset: 3
+          },
+          // 안쪽 링 — 평균 진척률
+          {
+            label: '평균 진척률',
+            data: [avgProg, 100 - avgProg],
+            backgroundColor: ['#F59E0B', '#FDF0DC'],
+            borderWidth: 2, borderColor: '#FFFFFF', weight: 0.62, hoverOffset: 0
+          }
+        ],
+        labels: ['완료', '진행 중', '미착수']
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '52%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label(item) {
+                if (item.datasetIndex === 1) {
+                  return item.dataIndex === 0 ? ` 평균 진척률 ${avgProg}%` : ` 남은 ${100 - avgProg}%`;
+                }
+                return ` ${item.label} ${item.parsed}건 (${g.합 ? Math.round(item.parsed / g.합 * 100) : 0}%)`;
+              }
+            }
+          }
+        }
+      },
+      plugins: [{
+        id: 'v2qdCenter',
+        afterDraw(chart) {
+          const arc = chart.getDatasetMeta(0).data[0];
+          if (!arc) return;
+          const ctx = chart.ctx; ctx.save();
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.font = "700 17px 'Pretendard',sans-serif"; ctx.fillStyle = '#4F46E5';
+          ctx.fillText(startedPct + '%', arc.x, arc.y - 13);
+          ctx.font = "600 9px 'Pretendard',sans-serif"; ctx.fillStyle = '#98A2B3';
+          ctx.fillText('착수율', arc.x, arc.y - 1);
+          ctx.font = "700 14px 'Pretendard',sans-serif"; ctx.fillStyle = '#B45309';
+          ctx.fillText(avgProg + '%', arc.x, arc.y + 12);
+          ctx.font = "600 9px 'Pretendard',sans-serif"; ctx.fillStyle = '#98A2B3';
+          ctx.fillText('평균진척률', arc.x, arc.y + 23);
+          ctx.restore();
+        }
+      }]
+    });
+  });
+}
+
+/** 주차별 추이 — 원과제 주차 스냅샷(weeklyHistory)을 V2_LINK로 재편 기준 재집계.
+ *  재편 트랙은 2026-08-18 신설이라 자체 이력이 없다. 각 과제가 흡수한 원과제의
+ *  그 주차 진척률을 평균내어 과제 단위 값으로 삼고, 25과제 평균을 추이로 그린다. */
+function renderV2Trend() {
+  const wrap = document.getElementById('v2TrendWrap');
+  const cv = document.getElementById('v2ChartTrend');
+  if (!wrap || !cv) return;
+  const hist = (typeof weeklyHistory !== 'undefined' && weeklyHistory) ? weeklyHistory : {};
+  const keys = Object.keys(hist).filter(k => Array.isArray(hist[k].tasks) && hist[k].tasks.length).sort();
+  if (keys.length < 2) { wrap.style.display = 'none'; v2DestroyChart('trend'); return; }
+  wrap.style.display = '';
+
+  const series = keys.map(k => {
+    const byNo = {};
+    hist[k].tasks.forEach(r => { byNo[Number(r.no)] = r; });
+    let sum = 0, n = 0, started = 0, done = 0;
+    v2Scored().forEach(t => {
+      const vals = t.origins.map(o => byNo[o]).filter(Boolean)
+        .map(r => { const v = Number(r.진척률) || 0; return v <= 1 ? v * 100 : v; });
+      if (!vals.length) return;
+      const pct = Math.round(vals.reduce((a, v) => a + v, 0) / vals.length);
+      sum += pct; n++;
+      if (pct > 0) started++;
+      if (pct >= 100) done++;
+    });
+    const label = String(hist[k].label || k).replace(/^\d{4}년\s*/, '');
+    return { label, avg: n ? Math.round(sum / n) : 0, started, done };
+  });
+
+  v2DestroyChart('trend');
+  v2charts.trend = new Chart(cv, {
+    type: 'line',
     data: {
-      labels: order,
+      labels: series.map(r => r.label),
       datasets: [
-        { label: '착수', data: order.map(q => map[q].착수), backgroundColor: '#147B52', borderRadius: 4, barThickness: 40 },
-        { label: '미착수', data: order.map(q => map[q].미착수), backgroundColor: '#D0D5DD', borderRadius: 4, barThickness: 40 }
+        { label: '평균 진척률(%)', data: series.map(r => r.avg), yAxisID: 'y', borderColor: '#F59E0B', backgroundColor: 'rgba(245,158,11,.10)', fill: true, tension: .3, pointRadius: 4, pointBackgroundColor: '#F59E0B', borderWidth: 2 },
+        { label: '착수(건)', data: series.map(r => r.started), yAxisID: 'y2', borderColor: '#4F46E5', backgroundColor: '#4F46E5', fill: false, tension: .3, pointRadius: 3, borderWidth: 2 },
+        { label: '완료(건)', data: series.map(r => r.done), yAxisID: 'y2', borderColor: '#EC4899', backgroundColor: '#EC4899', fill: false, tension: .3, pointRadius: 3, borderWidth: 2 }
       ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', font: v2ChartFont(12), color: v2Muted(), padding: 14 } } },
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', font: v2ChartFont(12), color: '#475467', padding: 14 } } },
       scales: {
-        x: { stacked: true, grid: { display: false }, ticks: { font: v2ChartFont(12), color: v2Muted() } },
-        y: { stacked: true, beginAtZero: true, grid: { color: v2Grid(), drawBorder: false }, ticks: { precision: 0, font: v2ChartFont(), color: v2Muted() } }
+        y: { position: 'left', min: 0, max: 100, title: { display: true, text: '진척률(%)', font: v2ChartFont(10), color: v2Muted() }, grid: { color: v2Grid(), drawBorder: false }, ticks: { font: v2ChartFont(), color: v2Muted() } },
+        y2: { position: 'right', min: 0, title: { display: true, text: '건수', font: v2ChartFont(10), color: v2Muted() }, grid: { display: false }, ticks: { font: v2ChartFont(), color: v2Muted(), precision: 0 } },
+        x: { grid: { display: false }, ticks: { font: v2ChartFont(), color: v2Muted() } }
       }
     }
   });
 }
 
-/** 진척률 원장 — 과제별 한 줄, 밀도 우선 */
 function renderV2Ledger() {
   const wrap = document.getElementById('v2Ledger');
   if (!wrap) return;
@@ -336,6 +451,44 @@ function renderV2Tasks() {
     <div class="stat-chip">흡수 원과제 <span>${rows.reduce((s, t) => s + t.origins.length, 0)}</span>건</div>`;
 }
 
+/* ── 에이전트별 운영 플랫폼 ─────────────────────────────────
+   PLAT(app.js)의 glyph를 재사용한다. 미지정 에이전트는 '미정'으로 표시.  */
+const V2_AGENT_PLAT = {
+  'A-01': ['claude'],
+  'A-02': ['claude'],
+  'A-03': ['tyro', 'python', 'aigye'],
+  'A-04': ['claude', 'gpt', 'aigye'],
+  'A-06': ['claude'],
+  'A-07': ['aigye'],
+  'A-08': ['claude'],
+  'A-09': ['claude', 'python'],
+  'A-10': ['aigye'],
+  'A-11': ['claude'],
+  'B-03': ['aigye', 'gpt'],
+  'B-06': ['claude'],
+};
+
+/** app.js의 PLAT에 없는 재편 전용 플랫폼 */
+const V2_EXTRA_PLAT = {
+  tyro: { label: '티로', glyph: '<svg viewBox="0 0 24 24" style="width:1.05em;height:1.05em;vertical-align:-.2em" xmlns="http://www.w3.org/2000/svg"><rect width="24" height="24" rx="5.5" fill="#3B2218"/><circle cx="12" cy="5.9" r="2.65" fill="#F2ECE6"/><path d="M12 10.4 L16.8 14.5 L12 20.1 L7.2 14.5 Z" fill="#F2ECE6" stroke="#F2ECE6" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="14.1" r="1.45" fill="#3B2218"/><path d="M12 14.1 V20.6" stroke="#3B2218" stroke-width="1.05" stroke-linecap="round"/></svg>' },
+};
+
+function v2Plat(key) {
+  if (typeof PLAT !== 'undefined' && PLAT[key]) return PLAT[key];
+  return V2_EXTRA_PLAT[key] || null;
+}
+
+/** 에이전트 코드 → 운영 플랫폼 배지 HTML */
+function v2PlatBadges(code) {
+  const keys = V2_AGENT_PLAT[code];
+  if (!keys || !keys.length) return '<span class="oper-badge p-tbd">미정</span>';
+  return keys.map(k => {
+    const p = v2Plat(k);
+    if (!p) return '';
+    return `<span class="oper-badge p-${k}">${p.glyph} ${p.label} 운영</span>`;
+  }).join('');
+}
+
 function v2TaskCard(t) {
   const ag = v2Agent(t.agentNo);
   const pct = t.progress || 0;
@@ -349,6 +502,7 @@ function v2TaskCard(t) {
       <div class="v2-card-id">
         <span class="v2-no">${t.no}</span>
         <span class="v2-agent-tag">${ag ? ag.code : ''} ${escapeHtml(ag ? ag.name : t.agent)}</span>
+        <span class="v2-plat">${ag ? v2PlatBadges(ag.code) : ''}</span>
       </div>
       <div class="v2-card-actions">
         <span class="v2-status ${t.status === '착수' ? 'on' : 'off'}">${t.status || '미착수'}</span>
@@ -417,6 +571,7 @@ function renderV2Agents() {
         <span class="v2-agent-code">${a.code}</span>
         <h3>${escapeHtml(a.name)}</h3>
       </header>
+      <div class="v2-plat">${v2PlatBadges(a.code)}</div>
       <div class="v2-agent-stats">
         <div><span class="k">과제</span><span class="v">${ts.length}</span></div>
         <div><span class="k">흡수 원과제</span><span class="v">${absorbed}</span></div>
@@ -668,6 +823,7 @@ function v2Refresh() {
   }
 }
 window._v2Refresh = v2Refresh;
+window._v2RenderTrend = renderV2Trend;
 
 /* ── 탭 이동 ───────────────────────────────────────────────── */
 function goToV2Task(no) {

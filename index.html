@@ -6,10 +6,10 @@
 <title>OKH 감사부 AI 활용계획 통합 대시보드</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script type="module" src="firebase.js?v=20260820d"></script>
+<script type="module" src="firebase.js?v=20260821b"></script>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
-<link rel="stylesheet" href="style.css?v=20260820d">
+<link rel="stylesheet" href="style.css?v=20260821b">
 </head>
 <body>
 <div class="app">
@@ -93,12 +93,12 @@
   </div>
 
   <div class="kpi-row kpi-6">
-    <div class="kpi-card"><div class="val" id="v2k-agents">16</div><div class="lbl">AI 에이전트</div><div class="sub-val">기존 18개에서 재편</div></div>
-    <div class="kpi-card"><div class="val" id="v2k-tasks">25</div><div class="lbl">AI 과제</div><div class="sub-val" id="v2k-tasks-sub"></div></div>
-    <div class="kpi-card accent"><div class="val" id="v2k-avg">0%</div><div class="lbl">평균 진척률</div><div class="sub-val">권한대기 2건 제외</div></div>
-    <div class="kpi-card"><div class="val" id="v2k-started">0</div><div class="lbl">착수 건</div><div class="sub-val" id="v2k-started-sub"></div></div>
-    <div class="kpi-card"><div class="val" id="v2k-done">0</div><div class="lbl">완료 건</div><div class="sub-val" id="v2k-done-sub"></div></div>
-    <div class="kpi-card"><div class="val" id="v2k-absorbed">0</div><div class="lbl">흡수 원과제</div><div class="sub-val" id="v2k-absorbed-sub"></div></div>
+    <div class="kpi-card"><span class="kpi-ico" aria-hidden="true">◈</span><div class="val" id="v2k-agents">16</div><div class="lbl">AI 에이전트</div><div class="sub-val">기존 18개에서 재편</div></div>
+    <div class="kpi-card"><span class="kpi-ico" aria-hidden="true">☰</span><div class="val" id="v2k-tasks">25</div><div class="lbl">AI 과제</div><div class="sub-val" id="v2k-tasks-sub"></div></div>
+    <div class="kpi-card accent"><span class="kpi-ico" aria-hidden="true">◉</span><div class="val" id="v2k-avg">0%</div><div class="lbl">평균 진척률</div><div class="sub-val">권한대기 2건 제외</div></div>
+    <div class="kpi-card"><span class="kpi-ico" aria-hidden="true">▶</span><div class="val" id="v2k-started">0</div><div class="lbl">착수 건</div><div class="sub-val" id="v2k-started-sub"></div></div>
+    <div class="kpi-card"><span class="kpi-ico" aria-hidden="true">✓</span><div class="val" id="v2k-done">0</div><div class="lbl">완료 건</div><div class="sub-val" id="v2k-done-sub"></div></div>
+    <div class="kpi-card"><span class="kpi-ico" aria-hidden="true">⇄</span><div class="val" id="v2k-absorbed">0</div><div class="lbl">흡수 원과제</div><div class="sub-val" id="v2k-absorbed-sub"></div></div>
   </div>
 
   <section class="chart-card full">
@@ -107,9 +107,16 @@
   </section>
 
   <div class="chart-grid">
-    <div class="chart-card full"><h3>에이전트별 평균 진척률</h3><div class="chart-wrap" style="height:420px"><canvas id="v2ChartAgent"></canvas></div></div>
-    <div class="chart-card"><h3>담당자별 과제 수와 진척률</h3><div class="chart-wrap" style="height:280px"><canvas id="v2ChartPerson"></canvas></div></div>
-    <div class="chart-card"><h3>목표 분기별 착수 현황</h3><div class="chart-wrap" style="height:280px"><canvas id="v2ChartQuarter"></canvas></div></div>
+    <div class="chart-card full"><h3>목표 분기별 착수 현황</h3><div class="q-donut-grid" id="v2QuarterStatusGrid"></div></div>
+    <div class="chart-card full" id="v2TrendWrap" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+        <h3 style="margin:0;">주차별 추이</h3>
+        <span class="v2-trend-note">재편 트랙은 2026-08-18 신설이라 자체 주차 이력이 없습니다. 각 과제가 흡수한 원과제의 주차별 진척률을 평균낸 <b>추정 추이</b>이므로, 마지막 지점이 상단 KPI의 현재 평균과 다를 수 있습니다.</span>
+      </div>
+      <div class="chart-wrap" style="height:260px"><canvas id="v2ChartTrend"></canvas></div>
+    </div>
+    <div class="chart-card full"><h3>에이전트별 평균 진척률</h3><div id="v2AgentPctGrid" class="v2-pct-grid"></div></div>
+    <div class="chart-card full"><h3>담당자별 과제 수와 진척률</h3><div class="chart-wrap" style="height:280px"><canvas id="v2ChartPerson"></canvas></div></div>
     <div class="chart-card full"><h3>진척률 원장</h3><div id="v2Ledger" class="v2-ledger"></div></div>
   </div>
 </div>
@@ -504,9 +511,9 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script src="data.js?v=20260820d"></script>
-<script src="data_v2.js?v=20260820d"></script>
-<script src="app.js?v=20260820d"></script>
-<script src="v2.js?v=20260820d"></script>
+<script src="data.js?v=20260821b"></script>
+<script src="data_v2.js?v=20260821b"></script>
+<script src="app.js?v=20260821b"></script>
+<script src="v2.js?v=20260821b"></script>
 </body>
 </html>

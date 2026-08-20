@@ -75,12 +75,25 @@ function switchTab(id, el) {
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
-  el.classList.add('active');
+  const nav = el || document.querySelector('.tab[data-tab="'+id+'"]');
+  if (nav) nav.classList.add('active');
+  document.body.dataset.track = id.startsWith('v2-') ? 'v2' : 'legacy';
   if (id==='dashboard') { renderDashboard(); loadWeeklyHistory(); }
   if (id==='schedule') renderSchedule();
   if (id==='agents') renderAgents();
   if (id==='tasklist') { updateTaskStickyOffset(); syncHeaderWidths(); requestAnimationFrame(syncHeaderWidths); }
+  if (id.startsWith('v2-') && typeof window._v2Render === 'function') window._v2Render(id);
 }
+
+// 재편 트랙(v2.js)에서 진척률이 바뀌면 원과제 트랙 화면을 다시 그린다
+window._legacyRerender = function () {
+  if (viewingWeek !== null) return;       // 스냅샷 보기 중에는 덮지 않음
+  applyFilter();
+  const on = id => { const e = document.getElementById(id); return e && e.classList.contains('active'); };
+  if (on('tab-dashboard')) renderDashboard();
+  if (on('tab-schedule')) renderSchedule();
+  if (on('tab-agents')) renderAgents();
+};
 
 // ── 차트 헬퍼 ────────────────────────────
 function destroyChart(id) { if(charts[id]){charts[id].destroy();delete charts[id];} }
@@ -105,6 +118,7 @@ function renderDashboard() {
   document.getElementById('kpi-done').textContent = done.length;
   document.getElementById('kpi-done-pct').textContent = active.length ? Math.round(done.length/active.length*100)+'%' : '0%';
   renderKpiDeltas();
+  renderProrationBanner();
   renderRiskCard();
 
   // 분기별 착수 현황 (분기당 미니 도넛)
@@ -273,6 +287,28 @@ function quarterIndex(target) {
   const s = normalizeTarget(target).toUpperCase();
   const m = s.match(/^(\d{4})\s*Q\s*([1-4])$/) || s.match(/^(\d{4})\s*([1-4])\s*Q$/);
   return m ? parseInt(m[1])*4 + parseInt(m[2]) : null;
+}
+
+// ── 안분 배너: 원과제 80건의 진척률이 재편 25건에서 어떻게 내려왔는지 ──
+function renderProrationBanner() {
+  const wrap = document.getElementById('prorationBanner');
+  if (!wrap) return;
+  if (typeof window._v2LegacyRollup !== 'function') { wrap.innerHTML = ''; return; }
+  const r = window._v2LegacyRollup(data);
+  const delta = r.totalAvg - r.beforeAvg;
+  wrap.innerHTML = `
+    <div class="prorate">
+      <div class="prorate-lead">
+        <span class="prorate-badge">안분 연동</span>
+        <p>원과제 <b>${r.linkedCount}건</b>이 AI 과제 25건에 흡수되어, 자체 값과 상위 과제 진척률 중 <b>높은 쪽</b>을 반영받습니다.
+           나머지 <b>${r.ownCount}건</b>은 AI 과제에서 제외되어 자체 값을 유지합니다.</p>
+      </div>
+      <div class="prorate-figures">
+        <div class="pf"><span class="k">흡수 ${r.linkedCount}건 평균</span><span class="v">${r.linkedAvg}%</span></div>
+        <div class="pf"><span class="k">전체 80건 평균</span><span class="v accent">${r.totalAvg}%</span></div>
+        <div class="pf"><span class="k">안분 전 대비</span><span class="v ${delta >= 0 ? 'up' : 'down'}">${delta > 0 ? '+' : ''}${delta}%p</span></div>
+      </div>
+    </div>`;
 }
 
 function renderRiskCard() {
@@ -891,6 +927,16 @@ function renderPlanCells(r) {
   return `<td class="col-plan-asis">${asisCell}</td><td class="col-plan">${tobeCell}</td>`;
 }
 
+// 진척률 셀 하단의 안분 표기 — 어느 과제에서 내려온 값인지, 자체 값 대비 얼마나 움직였는지
+function linkNote(r) {
+  if (!r._연동) return '<span class="prog-note own">자체</span>';
+  const before = Math.round((r._자체진척률 || 0) * 100);
+  const now = Math.round((r.진척률 || 0) * 100);
+  const d = now - before;
+  return `<span class="prog-note linked" title="AI 과제 ${r._연동과제}번에서 안분 · 안분 전 ${before}%">
+    과제 ${r._연동과제}${d ? `<i class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : ''}${d}</i>` : ''}</span>`;
+}
+
 function renderTable(rows) {
   const tbody = document.getElementById('tableBody');
   tbody.innerHTML = '';
@@ -922,7 +968,7 @@ function renderTable(rows) {
       <td class="col-aiuse col-extra" style="text-align:center;">${aiUseBadge}</td>
       <td class="col-method col-extra"><div class="cell-text" style="font-size:13px;">${r.구현방법||'-'}</div></td>
       <td class="col-status">${statusBadge}</td>
-      <td class="col-progress"><div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div><div class="progress-pct">${pct}%</div></div></td>
+      <td class="col-progress"><div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div><div class="progress-pct">${pct}%</div>${linkNote(r)}</div></td>
       <td class="col-target"><div class="cell-text" style="font-size:13px;">${normalizeTarget(r.목표완료)||'-'}</div></td>
       <td class="col-official col-extra"><div class="cell-text" style="font-size:13px;color:var(--accent);font-weight:600;">${r.공식완료일||'-'}</div></td>
       <td class="col-constraint col-extra"><div class="cell-text" style="font-size:13px;color:var(--text-2);">${r.제약사유||'-'}</div></td>
@@ -976,6 +1022,19 @@ function resetFilter() {
 
 // ── 편집 모달 ────────────────────────────
 // 편집 가능 필드 매핑: data 키 ↔ DOM ID. 진척률은 슬라이더로 별도 처리.
+// Firebase에는 안분 파생값(_연동·표시용 진척률)이 아닌 자체 값만 남긴다
+function sanitizeForSave(row) {
+  const out = { ...row };
+  if (out._연동) {
+    out.진척률 = out._자체진척률 || 0;
+    out.착수상태 = out._자체착수상태 || '';
+  }
+  delete out._연동; delete out._연동과제;
+  delete out._자체진척률; delete out._자체착수상태;
+  return out;
+}
+window._sanitizeForSave = sanitizeForSave;
+
 const EDITABLE_FIELDS = [
   ['영역','m_area'],['프로세스','m_process'],['에이전트','m_agent'],
   ['태스크','m_task'],
@@ -1004,8 +1063,20 @@ function openEdit(no) {
   document.getElementById('m_plan_flow').value = pp.flow;
   document.getElementById('m_plan_out').value = pp.out;
   const pct = Math.round((r.진척률||0)*100);
-  document.getElementById('m_progress').value = pct;
+  const slider = document.getElementById('m_progress');
+  slider.value = pct;
   document.getElementById('m_progress_val').textContent = pct+'%';
+  // 흡수된 원과제는 진척률을 재편 과제에서만 편집한다 (이중 관리 방지)
+  const lock = document.getElementById('m_progress_lock');
+  slider.disabled = !!r._연동;
+  if (lock) {
+    lock.style.display = r._연동 ? 'flex' : 'none';
+    if (r._연동) {
+      lock.innerHTML = `이 과제는 <b>AI 과제 ${r._연동과제}번</b>에 흡수되어 진척률이 자동 안분됩니다 (자체 값과 상위 과제 값 중 높은 쪽).
+        수정하려면 <button type="button" class="linkbtn" onclick="closeModal();goToV2Task(${r._연동과제})">과제 ${r._연동과제}로 이동</button>
+        <span class="muted">(안분 전 자체 값 ${Math.round((r._자체진척률||0)*100)}%)</span>`;
+    }
+  }
   document.getElementById('m_memo').value = '';
   document.getElementById('editModal').classList.add('open');
 }
@@ -1029,6 +1100,7 @@ function saveEdit() {
       변경내역[key] = { 이전: oldVal, 이후: newVal };
     }
     data[idx][key] = newVal;
+    if (key === '착수상태' && !data[idx]._연동) data[idx]._자체착수상태 = newVal;
   });
 
   // 1-b) 활용계획: 4칸 재조립 → 단일 문자열 저장 (Firebase·로그 호환)
@@ -1048,12 +1120,18 @@ function saveEdit() {
   }
 
   // 2) 진척률 (0~1 정규화)
-  const newProgress = parseInt(document.getElementById('m_progress').value)/100;
-  const oldProgress = orig.진척률 || 0;
-  if(newProgress !== oldProgress) {
-    변경내역['진척률'] = { 이전: Math.round(oldProgress*100)+'%', 이후: Math.round(newProgress*100)+'%' };
+  //    흡수된 행은 재편 과제에서 안분된 값이므로 자체 값만 갱신하고 표시값은 건드리지 않는다
+  if (data[idx]._연동) {
+    data[idx].진척률 = orig.진척률;
+  } else {
+    const newProgress = parseInt(document.getElementById('m_progress').value)/100;
+    const oldProgress = orig.진척률 || 0;
+    if(newProgress !== oldProgress) {
+      변경내역['진척률'] = { 이전: Math.round(oldProgress*100)+'%', 이후: Math.round(newProgress*100)+'%' };
+    }
+    data[idx].진척률 = newProgress;
+    data[idx]._자체진척률 = newProgress;
   }
-  data[idx].진척률 = newProgress;
 
   // 3) 수정 타임스탬프
   const nowTs = new Date();
@@ -1082,9 +1160,9 @@ function saveEdit() {
   closeModal(); applyFilter(); updateLog();
   showToast(`No.${currentEditNo} 저장됨${hasChange?` · ${Object.keys(변경내역).length}개 항목 변경`:memo?' · 메모 기록':''}`);
 
-  // 5) Firebase 자동저장
+  // 5) Firebase 자동저장 — 안분된 표시값이 아니라 자체 값을 저장한다
   if (typeof window._firebaseAutoSave === 'function') {
-    window._firebaseAutoSave(data[idx].no, data[idx]);
+    window._firebaseAutoSave(data[idx].no, sanitizeForSave(data[idx]));
   } else {
     document.getElementById('lastSave').textContent = nowTs.toLocaleString('ko-KR');
   }
@@ -1114,7 +1192,10 @@ const FIELD_LABELS = {
   구현방법:'구현방법', 착수상태:'착수상태', 진척률:'진척률',
   AsIs:'As-Is', ToBe:'To-Be', 기대효과:'기대효과',
   제약사유:'제약사유', 필요지원:'필요지원', 측정유형:'측정유형', 측정주기:'측정주기', 비고:'비고',
-  지연사유:'지연사유'
+  지연사유:'지연사유',
+  // 재편 트랙(v2.js) 필드
+  title:'과제명', impl:'구현', flow:'작동', out:'산출물',
+  person:'담당자', target:'목표완료', note:'비고·제약'
 };
 
 function updateLog() {
@@ -1179,7 +1260,8 @@ function updateLog() {
     div.className = 'log-item';
     div.innerHTML = `
       <div class="log-header">
-        <span class="log-no">No.${c.no}</span>
+        <span class="log-track ${c.트랙 === '재편' ? 'v2' : 'legacy'}">${c.트랙 === '재편' ? '재편' : '원과제'}</span>
+        <span class="log-no">${c.트랙 === '재편' ? '과제 ' + c.no : 'No.' + c.no}</span>
         <span class="log-time">${timeStr}</span>
       </div>
       ${fieldRows}${noFields}
@@ -1428,7 +1510,7 @@ function downloadExcel() {
   });
 
   const wsData = [
-    ['No', '업무영역', '프로세스', '에이전트명', '세부태스크', '현재 업무(As-Is)', 'AI 활용(To-Be)', '담당자', 'SHIFT', '과제유형', '우선순위', 'AI활용가능', '구현방법', '착수상태', '진척률(%)', '목표완료', '공식완료일', '제약사유', '필요지원', '측정유형', '측정 As-Is', '측정 To-Be', '기대효과', '측정주기', '비고', '최근수정']
+    ['No', '업무영역', '프로세스', '에이전트명', '세부태스크', '현재 업무(As-Is)', 'AI 활용(To-Be)', '담당자', 'SHIFT', '과제유형', '우선순위', 'AI활용가능', '구현방법', '착수상태', '진척률(%)', '안분 전(%)', '연동 AI과제', '재편 처리', '목표완료', '공식완료일', '제약사유', '필요지원', '측정유형', '측정 As-Is', '측정 To-Be', '기대효과', '측정주기', '비고', '최근수정']
   ];
   rows.forEach(r => {
     const pp = parsePlan(r.활용계획);
@@ -1436,7 +1518,10 @@ function downloadExcel() {
       r.no, r.영역||'', r.프로세스||'', r.에이전트||'', r.태스크||'',
       pp.matched ? pp.asis : (pp.asis||''), pp.matched ? pp.tobe : 'AI 미활용',
       r.담당자||'', r.shift||'', r.과제유형||'', r.우선순위||'',
-      r.AI활용가능||'', r.구현방법||'', r.착수상태||'', Math.round(r.진척률*100), r.목표완료||'',
+      r.AI활용가능||'', r.구현방법||'', r.착수상태||'', Math.round(r.진척률*100),
+      Math.round((r._자체진척률||0)*100), r._연동과제 ? '과제 '+r._연동과제 : '-',
+      (typeof V2_LEGACY_BY_NO!=='undefined' && V2_LEGACY_BY_NO[r.no] ? V2_LEGACY_BY_NO[r.no].action : '-'),
+      r.목표완료||'',
       r.공식완료일||'', r.제약사유||'', r.필요지원||'', r.측정유형||'', r.AsIs||'', r.ToBe||'',
       r.기대효과||'', r.측정주기||'', r.비고||'', r._수정일||''
     ]);
@@ -1447,7 +1532,7 @@ function downloadExcel() {
   ws['!cols'] = [
     {wch:5},{wch:25},{wch:20},{wch:30},{wch:45},{wch:35},{wch:60},
     {wch:12},{wch:8},{wch:10},{wch:8},{wch:12},{wch:15},
-    {wch:8},{wch:10},{wch:10},{wch:12},{wch:15},{wch:15},{wch:10},
+    {wch:8},{wch:10},{wch:10},{wch:12},{wch:12},{wch:12},{wch:10},{wch:12},{wch:15},{wch:15},{wch:10},
     {wch:20},{wch:20},{wch:40},{wch:10},{wch:20},{wch:14}
   ];
   XLSX.utils.book_append_sheet(wb, ws, '과제목록');
@@ -1459,9 +1544,7 @@ function downloadExcel() {
 
 // ── 목표완료 일정 → 과제목록 이동 ────────────────────────────
 function goToTask(no) {
-  const tabs = document.querySelectorAll('.tab');
-  // 과제 목록 탭은 3번째(index 2)
-  switchTab('tasklist', tabs[2]);
+  switchTab('tasklist', document.querySelector('.tab[data-tab="tasklist"]'));
   setTimeout(() => {
     resetFilter();
     setTimeout(() => {
@@ -1525,9 +1608,14 @@ window._applyRemoteData = function(remote) {
         target[idx][field] = val[field];
       });
     }
-    // 진척률은 숫자 보장 (Firebase 저장 시 float 유지)
-    if (val['진척률'] !== undefined) target[idx]['진척률'] = parseFloat(val['진척률']) || 0;
+    // Firebase가 보관하는 값은 항상 '안분 전 자체 값'이다.
+    // 원격이 값을 준 경우에만 자체 값을 갱신한다 — 안 그러면 두 번째 수신부터
+    // 직전에 안분된 표시값을 자체 값으로 잘못 굳혀버린다.
+    if (val['진척률'] !== undefined) target[idx]['_자체진척률'] = parseFloat(val['진척률']) || 0;
+    if (val['착수상태'] !== undefined) target[idx]['_자체착수상태'] = val['착수상태'];
   });
+  // 병합이 끝난 뒤 재편 25건의 진척률을 다시 안분해 덮는다
+  if (typeof window._v2ApplyProration === 'function') window._v2ApplyProration(target);
   // 스냅샷 보기 중에는 필터 옵션·화면을 라이브 기준으로 덮지 않음
   // (스냅샷 필터는 enterSnapshotMode가 관리 — 라이브 수신으로 옵션이 어긋나는 문제 방지)
   if (viewingWeek === null) {
@@ -1542,6 +1630,11 @@ window._applyRemoteData = function(remote) {
     if (sched && sched.classList.contains('active')) renderSchedule();
     const ag = document.getElementById('tab-agents');
     if (ag && ag.classList.contains('active')) renderAgents();
+    // 재편 화면도 원격 수신분을 반영해 다시 그린다 (안분 집계가 RAW 기준으로 굳는 것 방지)
+    const cur = document.querySelector('.tab-content.active');
+    if (cur && cur.id.startsWith('tab-v2-') && typeof window._v2Render === 'function') {
+      window._v2Render(cur.id.slice(4));
+    }
   }
   // Firebase 데이터 최초 수신 후 주차 이력 기록 (타이밍 보장)
   if (!_firebaseDataLoaded) {
@@ -1552,6 +1645,8 @@ window._applyRemoteData = function(remote) {
 window._dashData = data;
 
 function init() {
+  // RAW 기준으로도 안분을 먼저 적용해 첫 페인트부터 재편 수치가 보이게 한다
+  if (typeof window._v2ApplyProration === 'function') window._v2ApplyProration(data);
   populatePersonFilter(data);
   populateTargetFilter(data);
   const liveWeek = getWeekLabel();

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -6,10 +6,10 @@
 <title>OKH 감사부 AI 활용계획 통합 대시보드</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script type="module" src="firebase.js"></script>
+<script type="module" src="firebase.js?v=20260820d"></script>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20260820d">
 </head>
 <body>
 <div class="app">
@@ -22,13 +22,23 @@
       </div>
     </div>
     <div class="nav-section">
-      <div class="nav-label">Workspace</div>
+      <div class="nav-label">재편 <span class="nav-label-tag">16 에이전트 · 25 과제</span></div>
       <div class="nav">
-        <div class="tab active" onclick="switchTab('dashboard',this)"><span class="ico">📊</span><span>대시보드</span></div>
-        <div class="tab" onclick="switchTab('schedule',this)"><span class="ico">📅</span><span>분기별 추진 일정</span></div>
-        <div class="tab" onclick="switchTab('tasklist',this)"><span class="ico">📋</span><span>과제 목록</span></div>
-        <div class="tab" onclick="switchTab('agents',this)"><span class="ico">🤖</span><span>AI 에이전트</span></div>
-        <div class="tab" onclick="switchTab('changelog',this)"><span class="ico">📝</span><span>변경 로그</span></div>
+        <div class="tab active" data-tab="v2-dashboard" onclick="switchTab('v2-dashboard',this)"><span class="ico" aria-hidden="true">◈</span><span>재편 대시보드</span></div>
+        <div class="tab" data-tab="v2-tasks" onclick="switchTab('v2-tasks',this)"><span class="ico" aria-hidden="true">▤</span><span>AI 과제 25건</span></div>
+        <div class="tab" data-tab="v2-agents" onclick="switchTab('v2-agents',this)"><span class="ico" aria-hidden="true">◉</span><span>AI 에이전트 16개</span></div>
+        <div class="tab" data-tab="v2-map" onclick="switchTab('v2-map',this)"><span class="ico" aria-hidden="true">⇄</span><span>전환 매핑 80 → 25</span></div>
+        <div class="tab" data-tab="v2-excluded" onclick="switchTab('v2-excluded',this)"><span class="ico" aria-hidden="true">⊘</span><span>제외 과제 12건</span></div>
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">과거 <span class="nav-label-tag">원과제 80건</span></div>
+      <div class="nav">
+        <div class="tab" data-tab="dashboard" onclick="switchTab('dashboard',this)"><span class="ico" aria-hidden="true">▦</span><span>대시보드</span></div>
+        <div class="tab" data-tab="schedule" onclick="switchTab('schedule',this)"><span class="ico" aria-hidden="true">▥</span><span>분기별 추진 일정</span></div>
+        <div class="tab" data-tab="tasklist" onclick="switchTab('tasklist',this)"><span class="ico" aria-hidden="true">▤</span><span>과제 목록</span></div>
+        <div class="tab" data-tab="agents" onclick="switchTab('agents',this)"><span class="ico" aria-hidden="true">◉</span><span>AI 에이전트</span></div>
+        <div class="tab" data-tab="changelog" onclick="switchTab('changelog',this)"><span class="ico" aria-hidden="true">≡</span><span>변경 로그</span></div>
       </div>
     </div>
     <div class="nav-section" id="weeklyNavSection">
@@ -51,16 +61,16 @@
   <div class="main">
     <header class="topbar">
       <div class="page-title">
-        <h1>AI 활용계획 통합 대시보드</h1>
-        <div class="sub"><span id="topWeek">2026년 4월 5주차</span> · 전체 <span id="topTaskCount">80</span>개 과제 · 팀원 편집 + 현황 시각화</div>
+        <h1>OKH 감사부 AI 과제 운영</h1>
+        <div class="sub"><span id="topWeek">2026년 4월 5주차</span> · 재편 <b>16 에이전트 · 25 과제</b> · 원과제 <span id="topTaskCount">80</span>건 안분 연동</div>
       </div>
       <div class="topbar-right">
         <div class="tb-search">
-          <span style="color:var(--text-3);font-size:13px;">🔍</span>
+          <span class="tb-search-ico" aria-hidden="true">⌕</span>
           <input type="text" placeholder="과제·에이전트 검색..." oninput="(function(v){var s=document.getElementById('searchInput');if(s){s.value=v;applyFilter();}})(this.value)">
         </div>
         <div class="save-indicator"><span class="save-dot" id="saveDot"></span><span id="saveStatus">Firebase 연결 대기중</span></div>
-        <div class="tb-icon-btn" title="알림">🔔</div>
+        <div class="tb-track" id="tbTrack"><span class="dot"></span><span id="tbTrackLabel">재편 트랙</span></div>
       </div>
     </header>
 
@@ -71,8 +81,115 @@
 
     <div class="page">
 
+<!-- ══════════ 재편 ① 재편 대시보드 ══════════════════════════ -->
+<div id="tab-v2-dashboard" class="tab-content active">
+  <div class="v2-lead">
+    <div class="v2-lead-text">
+      <h2>기존 18개 에이전트 · 80개 과제를 16개 에이전트 · 25개 과제로 재편했습니다</h2>
+      <p>원과제 80건 중 <b>68건</b>은 상위 AI 과제로 흡수되고, <b>12건</b>은 AI 과제에서 제외했습니다.
+         흡수된 원과제는 자체 값과 상위 과제 진척률 중 높은 쪽을 안분받으므로, 기존 보고 수치를 지키면서 재편 성과만큼 함께 올라갑니다.</p>
+    </div>
+    <span class="v2-source" id="v2Source"></span>
+  </div>
+
+  <div class="kpi-row kpi-6">
+    <div class="kpi-card"><div class="val" id="v2k-agents">16</div><div class="lbl">AI 에이전트</div><div class="sub-val">기존 18개에서 재편</div></div>
+    <div class="kpi-card"><div class="val" id="v2k-tasks">25</div><div class="lbl">AI 과제</div><div class="sub-val" id="v2k-tasks-sub"></div></div>
+    <div class="kpi-card accent"><div class="val" id="v2k-avg">0%</div><div class="lbl">평균 진척률</div><div class="sub-val">권한대기 2건 제외</div></div>
+    <div class="kpi-card"><div class="val" id="v2k-started">0</div><div class="lbl">착수 건</div><div class="sub-val" id="v2k-started-sub"></div></div>
+    <div class="kpi-card"><div class="val" id="v2k-done">0</div><div class="lbl">완료 건</div><div class="sub-val" id="v2k-done-sub"></div></div>
+    <div class="kpi-card"><div class="val" id="v2k-absorbed">0</div><div class="lbl">흡수 원과제</div><div class="sub-val" id="v2k-absorbed-sub"></div></div>
+  </div>
+
+  <section class="chart-card full">
+    <h3>안분 결과 — 원과제 80건의 진척률은 어떻게 움직이는가</h3>
+    <div id="v2RollupWrap"></div>
+  </section>
+
+  <div class="chart-grid">
+    <div class="chart-card full"><h3>에이전트별 평균 진척률</h3><div class="chart-wrap" style="height:420px"><canvas id="v2ChartAgent"></canvas></div></div>
+    <div class="chart-card"><h3>담당자별 과제 수와 진척률</h3><div class="chart-wrap" style="height:280px"><canvas id="v2ChartPerson"></canvas></div></div>
+    <div class="chart-card"><h3>목표 분기별 착수 현황</h3><div class="chart-wrap" style="height:280px"><canvas id="v2ChartQuarter"></canvas></div></div>
+    <div class="chart-card full"><h3>진척률 원장</h3><div id="v2Ledger" class="v2-ledger"></div></div>
+  </div>
+</div>
+
+<!-- ══════════ 재편 ② AI 과제 25건 ═══════════════════════════ -->
+<div id="tab-v2-tasks" class="tab-content">
+  <div class="v2-note">
+    진척률·착수상태를 <b>여기서 수정</b>합니다. 저장하면 흡수한 원과제에 즉시 안분 반영되어
+    <b>과거 트랙의 80건 진척률</b>까지 함께 올라갑니다.
+  </div>
+  <div class="toolbar">
+    <label for="v2FilterAgent">에이전트</label>
+    <select id="v2FilterAgent" onchange="renderV2Tasks()"><option value="">전체</option></select>
+    <label for="v2FilterPerson">담당자</label>
+    <select id="v2FilterPerson" onchange="renderV2Tasks()"><option value="">전체</option></select>
+    <label for="v2FilterStatus">착수상태</label>
+    <select id="v2FilterStatus" onchange="renderV2Tasks()">
+      <option value="">전체</option><option value="착수">착수</option><option value="미착수">미착수</option>
+    </select>
+    <label for="v2Search">검색</label>
+    <input type="text" id="v2Search" placeholder="과제명·구현·산출물 검색" style="width:220px" oninput="renderV2Tasks()">
+    <button class="btn btn-outline" onclick="resetV2Filter()">초기화</button>
+  </div>
+  <div class="stats-bar" id="v2TaskStats"></div>
+  <div class="v2-task-grid" id="v2TaskBody"></div>
+</div>
+
+<!-- ══════════ 재편 ③ AI 에이전트 16개 ═══════════════════════ -->
+<div id="tab-v2-agents" class="tab-content">
+  <div class="v2-note">
+    에이전트별로 담당 과제와 흡수한 원과제 수를 묶어 봅니다. 과제를 누르면 바로 수정할 수 있습니다.
+  </div>
+  <div class="v2-agent-grid" id="v2AgentGrid"></div>
+  <section class="chart-card full" style="margin-top:22px;">
+    <h3>기존 18개 에이전트가 어디로 갔는가</h3>
+    <div id="v2BeforeAfter"></div>
+  </section>
+</div>
+
+<!-- ══════════ 재편 ④ 전환 매핑 80 → 25 ══════════════════════ -->
+<div id="tab-v2-map" class="tab-content">
+  <div class="v2-note">
+    원과제 80건이 각각 어느 AI 과제로 갔는지, 그 결과 진척률이 얼마나 움직였는지를 한 줄로 보여줍니다.
+    번호를 누르면 과거 트랙의 <b>과제 목록</b>으로, 과제 칩을 누르면 <b>AI 과제 25건</b>으로 이동합니다.
+  </div>
+  <div class="toolbar">
+    <label for="v2MapAction">처리</label>
+    <select id="v2MapAction" onchange="renderV2Map()"><option value="">전체</option></select>
+    <label for="v2MapSearch">검색</label>
+    <input type="text" id="v2MapSearch" placeholder="태스크·사유·에이전트 검색" style="width:260px" oninput="renderV2Map()">
+    <button class="btn btn-outline" onclick="resetV2Map()">초기화</button>
+    <div style="margin-left:auto;font-size:12px;color:var(--text-2);"><span id="v2MapCount"></span></div>
+  </div>
+  <div class="v2-table-wrap">
+    <table class="v2-map-table">
+      <thead><tr>
+        <th class="v2m-no">원과제</th>
+        <th class="v2m-task">세부태스크</th>
+        <th class="v2m-act">처리</th>
+        <th class="v2m-dest">이관된 AI 과제</th>
+        <th class="v2m-prog">진척률 변화</th>
+        <th class="v2m-why">사유</th>
+      </tr></thead>
+      <tbody id="v2MapBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════ 재편 ⑤ 제외 과제 12건 ═════════════════════════ -->
+<div id="tab-v2-excluded" class="tab-content">
+  <div class="v2-note warn">
+    AI 과제 목록에서 제외한 <b>12건</b>입니다. <b>제외는 업무 중단이 아닙니다.</b>
+    비AI 자동화 자산과 범용도구는 계속 운영하되 AI 진척률 집계에서만 분리해 수치 왜곡을 없앴습니다.
+    <b>AX취소</b>는 AI 개발 자체를 취소한 건입니다.
+  </div>
+  <div id="v2ExcludedWrap"></div>
+</div>
+
 <!-- ① 대시보드 탭 -->
-<div id="tab-dashboard" class="tab-content active">
+<div id="tab-dashboard" class="tab-content">
   <div class="kpi-row" style="grid-template-columns:repeat(6,minmax(0,1fr));">
     <div class="kpi-card"><div class="val" id="kpi-total">80</div><div class="lbl">전체 과제</div></div>
     <div class="kpi-card"><div class="val" id="kpi-started">0</div><div class="lbl">착수 건</div><div class="sub-val" id="kpi-started-pct"></div><div class="kpi-delta" id="kpi-delta-started"></div></div>
@@ -81,15 +198,16 @@
     <div class="kpi-card"><div class="val" id="kpi-done">0</div><div class="lbl">완료 건</div><div class="sub-val" id="kpi-done-pct"></div><div class="kpi-delta" id="kpi-delta-done"></div></div>
     <div class="kpi-card"><div class="val" id="kpi-agents">-</div><div class="lbl">AI 에이전트 수</div></div>
   </div>
+  <div id="prorationBanner"></div>
   <div class="chart-grid">
-    <div class="chart-card full"><h3>⚠️ 일정 리스크</h3><div id="riskCard"></div></div>
+    <div class="chart-card full"><h3>일정 리스크</h3><div id="riskCard"></div></div>
     <div class="chart-card full"><h3>분기별 착수 현황</h3><div class="q-donut-grid" id="quarterStatusGrid"></div></div>
-    <div class="chart-card full" id="chartTrendWrap" style="display:none;"><h3>📈 주차별 추이</h3><div class="chart-wrap" style="height:260px"><canvas id="chartTrend"></canvas></div></div>
+    <div class="chart-card full" id="chartTrendWrap" style="display:none;"><h3>주차별 추이</h3><div class="chart-wrap" style="height:260px"><canvas id="chartTrend"></canvas></div></div>
     <div class="chart-card full"><h3>담당자별 착수 현황</h3><div class="chart-wrap" style="height:240px"><canvas id="chartPerson"></canvas></div></div>
     <div class="chart-card full"><h3>업무영역별 착수 현황</h3><div class="chart-wrap" style="height:260px"><canvas id="chartArea"></canvas></div></div>
     <div class="chart-card full">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <h3 style="margin:0;">📋 주차별 진척 이력</h3>
+        <h3 style="margin:0;">주차별 진척 이력</h3>
         <span id="weeklyAutoTag" style="font-size:11px;color:#aaa;"></span>
       </div>
       <div id="weeklyTable"></div>
@@ -131,7 +249,7 @@
       <option value="7">최근 1주일</option>
     </select>
     <button class="btn btn-outline" onclick="resetFilter()">초기화</button>
-    <button class="btn btn-orange" onclick="downloadExcel()">📥 엑셀 다운로드</button>
+    <button class="btn btn-orange" onclick="downloadExcel()">엑셀 다운로드</button>
     <div class="col-toggle">
       <span>전체 컬럼</span>
       <div id="colSwitch" class="switch" onclick="toggleColumns()" role="switch" aria-checked="false" title="전체 컬럼 보기 (가로 스크롤)"></div>
@@ -315,6 +433,7 @@
           <input type="range" id="m_progress" min="0" max="100" step="5" oninput="document.getElementById('m_progress_val').textContent=this.value+'%'">
           <div class="slider-val" id="m_progress_val">0%</div>
         </div>
+        <div class="lock-note" id="m_progress_lock" style="display:none;"></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label>As-Is</label><textarea id="m_asis" rows="2"></textarea></div>
@@ -340,8 +459,54 @@
 </div>
 
 
+<!-- 재편 과제 편집 모달 -->
+<div class="modal-overlay" id="v2EditModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <h3 id="v2ModalTitle">과제 수정</h3>
+        <p class="modal-sub" id="v2ModalAgent"></p>
+      </div>
+      <button class="modal-close" onclick="closeV2Modal()" aria-label="닫기">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="prorate-hint" id="v2ModalOrigins"></div>
+      <div class="form-group"><label for="v2m_title">과제명</label><input type="text" id="v2m_title"></div>
+      <div class="plan-tobe-group">
+        <div class="plan-tobe-title">AI 활용 (To-Be)</div>
+        <div class="form-group"><label for="v2m_impl">구현 — 무엇으로 만들었나</label><textarea id="v2m_impl" rows="3"></textarea></div>
+        <div class="form-group"><label for="v2m_flow">작동 — 입력에서 산출까지의 흐름</label><textarea id="v2m_flow" rows="4"></textarea></div>
+        <div class="form-group"><label for="v2m_out">산출물</label><textarea id="v2m_out" rows="2"></textarea></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label for="v2m_person">담당자</label><input type="text" id="v2m_person" placeholder="쉼표로 구분"></div>
+        <div class="form-group"><label for="v2m_target">목표완료</label><input type="text" id="v2m_target" placeholder="예: 2026 Q3"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label for="v2m_status">착수상태</label>
+          <select id="v2m_status"><option value="착수">착수</option><option value="미착수">미착수</option></select>
+        </div>
+        <div class="form-group"><label for="v2m_note">비고 · 제약</label><input type="text" id="v2m_note"></div>
+      </div>
+      <div class="form-group"><label for="v2m_progress">진척률</label>
+        <div class="slider-wrap">
+          <input type="range" id="v2m_progress" min="0" max="100" step="1" oninput="document.getElementById('v2m_progress_val').textContent=this.value+'%'">
+          <div class="slider-val" id="v2m_progress_val">0%</div>
+        </div>
+      </div>
+      <div class="form-group"><label for="v2m_memo">메모 (이번 변경 사유 · 변경 로그에 기록됨)</label><textarea id="v2m_memo" rows="2" placeholder="예: 티로 API 연동 완료로 진척률 상향"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeV2Modal()">취소</button>
+      <button class="btn btn-primary" onclick="saveV2Edit()">저장</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
-<script src="data.js"></script>
-<script src="app.js"></script>
+<script src="data.js?v=20260820d"></script>
+<script src="data_v2.js?v=20260820d"></script>
+<script src="app.js?v=20260820d"></script>
+<script src="v2.js?v=20260820d"></script>
 </body>
 </html>

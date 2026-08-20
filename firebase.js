@@ -15,7 +15,8 @@ const FIREBASE_CONFIG = {
   appId:             "1:763599271245:web:73aeef5cdb6e07b5ca3304"
 };
 
-const DB_PATH    = "okh_audit/tasks";     // Realtime Database 경로
+const DB_PATH    = "okh_audit/tasks";     // Realtime Database 경로 (원과제 80건)
+const V2_PATH    = "okh_audit/tasks_v2";  // 재편 트랙 (16 에이전트 · 25 과제)
 const LOG_PATH   = "okh_audit/changelog"; // 변경 로그 경로
 const AGENT_PATH = "okh_audit/agentMeta"; // 에이전트별 사용 AI·운영 플랫폼
 
@@ -62,11 +63,35 @@ window._firebaseAutoSave = function autoSave(no, rowData) {
 }
 
 // ── 전체 초기 업로드 (최초 1회, 콘솔에서 window._uploadAll() 호출)
+//    안분 파생값이 아닌 자체 값만 올린다
 window._uploadAll = function() {
   if (!window._dashData) { console.warn('데이터 없음'); return; }
+  const clean = typeof window._sanitizeForSave === 'function' ? window._sanitizeForSave : (r => r);
   const batch = {};
-  window._dashData.forEach(r => { batch[DB_PATH + '/' + r.no] = r; });
+  window._dashData.forEach(r => { batch[DB_PATH + '/' + r.no] = clean(r); });
   update(ref(db), batch).then(() => console.log('전체 업로드 완료')).catch(console.error);
+};
+
+// ── 재편 트랙: 실시간 수신 ─────────────────────────
+window._firebaseListenV2 = function listenV2() {
+  onValue(ref(db, V2_PATH), (snapshot) => {
+    const remote = snapshot.val();
+    if (remote && typeof window._applyRemoteV2 === 'function') window._applyRemoteV2(remote);
+  }, (err) => console.error('재편 트랙 수신 오류:', err));
+};
+
+// ── 재편 트랙: 단일 과제 저장 ──────────────────────
+window._firebaseSaveV2 = function saveV2(no, taskData) {
+  setSaveStatus('saving', '저장 중…');
+  const updates = {};
+  updates[V2_PATH + '/' + no] = { ...taskData, _updatedAt: serverTimestamp() };
+  update(ref(db), updates)
+    .then(() => {
+      setSaveStatus('saved', '저장됨 ' + new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}));
+      const el = document.getElementById('lastSave');
+      if (el) el.textContent = new Date().toLocaleString('ko-KR');
+    })
+    .catch(err => setSaveStatus('error', '저장 실패: ' + err.message));
 };
 
 // ── 변경 로그 1건 저장 (push로 누적)
@@ -108,6 +133,7 @@ window._firebaseListenAgentMeta = function() {
 
 // DOM 준비 후 리스닝 시작
 window.addEventListener('load', () => {
+  setTimeout(window._firebaseListenV2, 700);   // 재편 값을 먼저 받아야 안분이 맞는다
   setTimeout(window._firebaseListen, 800);
   setTimeout(window._firebaseListenLog, 900);
   setTimeout(window._firebaseListenAgentMeta, 1000);

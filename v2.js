@@ -133,6 +133,7 @@ function renderV2Dashboard() {
   set('v2k-done-sub', scored.length ? Math.round(done.length / scored.length * 100) + '%' : '');
   set('v2k-absorbed-sub', '원과제 80건 중');
 
+  renderV2CycleDeltas();
   renderV2Rollup();
   renderV2QuarterStatus();
   renderV2Trend();
@@ -142,6 +143,28 @@ function renderV2Dashboard() {
 }
 
 /** 안분 효과 요약 — 원과제 80건의 진척률이 어떻게 움직였는가 */
+/** 대시보드 KPI — 주기 시작 대비 증감.
+ *  기준선은 변경 로그를 되감아 만들므로 별도 스냅샷이 필요 없다. */
+function renderV2CycleDeltas() {
+  const range = currentCycle();
+  const base = v2BaselineAt(range);
+  const cur = v2Scored();
+  const baseScored = base.filter(t => !t.planned);
+
+  const avgOf = arr => arr.length ? Math.round(arr.reduce((s, t) => s + (t.progress || 0), 0) / arr.length) : 0;
+  const d = {
+    'v2d-avg': [avgOf(cur) - avgOf(baseScored), '%p'],
+    'v2d-started': [cur.filter(t => t.status === '착수').length - baseScored.filter(t => t.status === '착수').length, '건'],
+    'v2d-done': [cur.filter(t => t.progress >= 100).length - baseScored.filter(t => t.progress >= 100).length, '건']
+  };
+  Object.entries(d).forEach(([id, [diff, unit]]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.className = 'kpi-delta ' + (diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat');
+    el.textContent = `${diff > 0 ? '▲' : diff < 0 ? '▼' : '—'} ${Math.abs(diff)}${unit} 이번 주기 (${range.label})`;
+  });
+}
+
 function renderV2Rollup() {
   const wrap = document.getElementById('v2RollupWrap');
   if (!wrap) return;
@@ -173,6 +196,95 @@ function renderV2Rollup() {
         <div class="v2-rollup-stat total"><span class="k">전체 80건</span><span class="v">${r.totalAvg}%</span></div>
       </div>
     </div>`;
+}
+
+/* ══════════════════════════════════════════════════════════
+   격주 수요일 주기 — AI 과제 회의 주기
+   회의가 수요일 16:00이므로 주기 경계도 그 시각에 맞춘다.
+   경계 = 앵커 ± 14일 × n. 회의일이 바뀌면 앵커 한 줄만 고치면 된다.
+   ══════════════════════════════════════════════════════════ */
+const CYCLE_ANCHOR = new Date(2026, 8, 2, 16, 0, 0, 0).getTime(); // 2026-09-02(수) 16:00
+const CYCLE_MS = 14 * 24 * 60 * 60 * 1000;
+
+function cycleIndexOf(ts) { return Math.floor((ts - CYCLE_ANCHOR) / CYCLE_MS); }
+
+function cycleRange(n) {
+  const start = CYCLE_ANCHOR + n * CYCLE_MS;
+  const end = start + CYCLE_MS;
+  const f = t => { const d = new Date(t); return (d.getMonth() + 1) + '/' + d.getDate(); };
+  return { n, start, end, label: f(start) + ' ~ ' + f(end) };
+}
+
+/** 지금 진행 중인 주기 */
+function currentCycle() { return cycleRange(cycleIndexOf(Date.now())); }
+
+/** 화면에서 고른 주기 (없으면 null) */
+function selectedCycle() {
+  const v = document.getElementById('v2FilterCycle')?.value || '';
+  if (!v) return null;
+  const cur = cycleIndexOf(Date.now());
+  return cycleRange(v === 'prev' ? cur - 1 : cur);
+}
+
+/** 주기 안의 재편 트랙 변경 로그를 과제별로 합친다.
+ *  한 과제를 여러 번 고쳐도 '가장 오래된 이전값 → 가장 최근 이후값' 하나로 묶는다.
+ *  되돌린 경우(60→70→60)는 순변동이 없으므로 결과에서 뺀다. */
+function v2CycleChanges(range) {
+  const m = new Map();
+  if (!range) return m;
+  const logs = (typeof _allLogs !== 'undefined' && Array.isArray(_allLogs) ? _allLogs : [])
+    .filter(l => l && l.트랙 === '재편' && l._ts >= range.start && l._ts < range.end)
+    .sort((a, b) => (a._ts || 0) - (b._ts || 0));
+
+  logs.forEach(l => {
+    let e = m.get(l.no);
+    if (!e) { e = { no: l.no, fields: {}, count: 0 }; m.set(l.no, e); }
+    e.count++;
+    Object.entries(l.변경내역 || {}).forEach(([f, v]) => {
+      if (!e.fields[f]) e.fields[f] = { from: v.이전 };
+      e.fields[f].to = v.이후;
+    });
+  });
+
+  // 순변동이 없는 필드·과제 제거
+  m.forEach((e, no) => {
+    Object.keys(e.fields).forEach(f => {
+      if (String(e.fields[f].from) === String(e.fields[f].to)) delete e.fields[f];
+    });
+    if (!Object.keys(e.fields).length) m.delete(no);
+  });
+  return m;
+}
+
+const pctNum = v => parseInt(String(v).replace(/[^0-9-]/g, ''), 10) || 0;
+
+/** 주기 변동 요약 — 요약띠와 대시보드 델타가 같은 값을 쓴다 */
+function v2CycleSummary(range) {
+  const m = v2CycleChanges(range);
+  let up = 0, newStart = 0, newDone = 0;
+  m.forEach(e => {
+    const p = e.fields['진척률'];
+    if (p && pctNum(p.to) > pctNum(p.from)) up++;
+    if (p && pctNum(p.to) >= 100 && pctNum(p.from) < 100) newDone++;
+    const st = e.fields['착수상태'];
+    if (st && st.to === '착수' && st.from !== '착수') newStart++;
+  });
+  return { range, changed: m.size, up, newStart, newDone, map: m };
+}
+
+/** 주기 시작 시점의 값 복원 — 현재값에서 주기 내 변동을 되돌린다.
+ *  별도 스냅샷 없이 로그만으로 기준선을 만든다. */
+function v2BaselineAt(range) {
+  const m = v2CycleChanges(range);
+  return v2data.map(t => {
+    const e = m.get(t.no);
+    return {
+      no: t.no,
+      planned: t.planned,
+      progress: e && e.fields['진척률'] ? pctNum(e.fields['진척률'].from) : (t.progress || 0),
+      status: e && e.fields['착수상태'] ? e.fields['착수상태'].from : (t.status || '미착수')
+    };
+  });
 }
 
 function v2ChartFont(size) { return { family: "'Pretendard',sans-serif", size: size || 11 }; }
@@ -421,7 +533,11 @@ function renderV2Tasks() {
   const fStatus = document.getElementById('v2FilterStatus')?.value || '';
   const q = (document.getElementById('v2Search')?.value || '').trim().toLowerCase();
 
+  const cyc = selectedCycle();
+  const changed = cyc ? v2CycleChanges(cyc) : null;
+
   const rows = v2data.filter(t => {
+    if (changed && !changed.has(t.no)) return false;
     if (fAgent && String(t.agentNo) !== fAgent) return false;
     if (fPerson && !(t.person || '').includes(fPerson)) return false;
     if (fStatus && (t.status || '미착수') !== fStatus) return false;
@@ -432,10 +548,12 @@ function renderV2Tasks() {
     return true;
   });
 
+  renderV2CycleBar(cyc);
+
   if (!rows.length) {
     body.innerHTML = `<div class="v2-empty">
-      <p class="t">조건에 맞는 과제가 없습니다.</p>
-      <p class="d">필터를 넓히거나 초기화하면 25건 전체를 볼 수 있습니다.</p>
+      <p class="t">${cyc ? `${cyc.label} 주기에 변동된 과제가 없습니다.` : '조건에 맞는 과제가 없습니다.'}</p>
+      <p class="d">${cyc ? '과제를 수정하면 이 주기의 변동으로 잡힙니다.' : '필터를 넓히거나 초기화하면 25건 전체를 볼 수 있습니다.'}</p>
       <button class="btn btn-outline" onclick="resetV2Filter()">필터 초기화</button>
     </div>`;
   } else {
@@ -490,6 +608,22 @@ function v2PlatBadges(code) {
   }).join('');
 }
 
+/** 주기 변동 요약띠 — 고른 주기가 없으면 이번 주기를 보여준다 */
+function renderV2CycleBar(cyc) {
+  const el = document.getElementById('v2CycleBar');
+  if (!el) return;
+  const range = cyc || currentCycle();
+  const sm = v2CycleSummary(range);
+  const isCur = range.n === cycleIndexOf(Date.now());
+  el.innerHTML = `
+    <span class="v2-cyc-label">${isCur ? '이번 주기' : '주기'} <b>${range.label}</b></span>
+    <span class="v2-cyc-stat"><b>${sm.changed}</b>건 변동</span>
+    <span class="v2-cyc-stat up"><b>${sm.up}</b>건 진척률 상승</span>
+    <span class="v2-cyc-stat up"><b>${sm.newStart}</b>건 신규 착수</span>
+    <span class="v2-cyc-stat up"><b>${sm.newDone}</b>건 신규 완료</span>
+    ${sm.changed === 0 ? '<span class="v2-cyc-note">아직 이 주기에 기록된 변동이 없습니다.</span>' : ''}`;
+}
+
 function v2TaskCard(t) {
   const ag = v2Agent(t.agentNo);
   const pct = t.progress || 0;
@@ -542,6 +676,7 @@ function resetV2Filter() {
   ['v2FilterAgent', 'v2FilterPerson', 'v2FilterStatus'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const s = document.getElementById('v2Search'); if (s) s.value = '';
   renderV2Tasks();
+  const c = document.getElementById('v2FilterCycle'); if (c) c.value = '';
 }
 
 function populateV2Filters() {
@@ -825,6 +960,11 @@ function v2Refresh() {
 }
 window._v2Refresh = v2Refresh;
 window._v2RenderTrend = renderV2Trend;
+window._v2RenderCycle = function () {
+  renderV2CycleDeltas();
+  const a = document.querySelector('.tab-content.active');
+  if (a && a.id === 'tab-v2-tasks') renderV2Tasks();
+};
 
 /* ── 탭 이동 ───────────────────────────────────────────────── */
 function goToV2Task(no) {

@@ -6,10 +6,10 @@
 <title>OKH 감사부 AI 활용계획 통합 대시보드</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script type="module" src="firebase.js?v=20260821d"></script>
+<script type="module" src="firebase.js?v=20260821f"></script>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
-<link rel="stylesheet" href="style.css?v=20260821d">
+<link rel="stylesheet" href="style.css?v=20260821f">
 </head>
 <body>
 <div class="app">
@@ -95,9 +95,9 @@
   <div class="kpi-row kpi-6">
     <div class="kpi-card"><span class="kpi-ico" aria-hidden="true">◈</span><div class="val" id="v2k-agents">16</div><div class="lbl">AI 에이전트</div><div class="sub-val">기존 18개에서 재편</div></div>
     <div class="kpi-card"><span class="kpi-ico" aria-hidden="true">☰</span><div class="val" id="v2k-tasks">25</div><div class="lbl">AI 과제</div><div class="sub-val" id="v2k-tasks-sub"></div></div>
-    <div class="kpi-card accent"><span class="kpi-ico" aria-hidden="true">◉</span><div class="val" id="v2k-avg">0%</div><div class="lbl">평균 진척률</div><div class="sub-val">권한대기 2건 제외</div></div>
-    <div class="kpi-card"><span class="kpi-ico" aria-hidden="true">▶</span><div class="val" id="v2k-started">0</div><div class="lbl">착수 건</div><div class="sub-val" id="v2k-started-sub"></div></div>
-    <div class="kpi-card"><span class="kpi-ico" aria-hidden="true">✓</span><div class="val" id="v2k-done">0</div><div class="lbl">완료 건</div><div class="sub-val" id="v2k-done-sub"></div></div>
+    <div class="kpi-card accent"><span class="kpi-ico" aria-hidden="true">◉</span><div class="val" id="v2k-avg">0%</div><div class="lbl">평균 진척률</div><div class="sub-val">권한대기 2건 제외</div><div class="kpi-delta" id="v2d-avg"></div></div>
+    <div class="kpi-card"><span class="kpi-ico" aria-hidden="true">▶</span><div class="val" id="v2k-started">0</div><div class="lbl">착수 건</div><div class="sub-val" id="v2k-started-sub"></div><div class="kpi-delta" id="v2d-started"></div></div>
+    <div class="kpi-card"><span class="kpi-ico" aria-hidden="true">✓</span><div class="val" id="v2k-done">0</div><div class="lbl">완료 건</div><div class="sub-val" id="v2k-done-sub"></div><div class="kpi-delta" id="v2d-done"></div></div>
     <div class="kpi-card"><span class="kpi-ico" aria-hidden="true">⇄</span><div class="val" id="v2k-absorbed">0</div><div class="lbl">흡수 원과제</div><div class="sub-val" id="v2k-absorbed-sub"></div></div>
   </div>
 
@@ -136,10 +136,17 @@
     <select id="v2FilterStatus" onchange="renderV2Tasks()">
       <option value="">전체</option><option value="착수">착수</option><option value="미착수">미착수</option>
     </select>
+    <label for="v2FilterCycle">주기</label>
+    <select id="v2FilterCycle" onchange="renderV2Tasks()">
+      <option value="">전체</option>
+      <option value="cur">이번 주기 변동만</option>
+      <option value="prev">지난 주기 변동만</option>
+    </select>
     <label for="v2Search">검색</label>
     <input type="text" id="v2Search" placeholder="과제명·구현·산출물 검색" style="width:220px" oninput="renderV2Tasks()">
     <button class="btn btn-outline" onclick="resetV2Filter()">초기화</button>
   </div>
+  <div id="v2CycleBar" class="v2-cycle-bar"></div>
   <div class="stats-bar" id="v2TaskStats"></div>
   <div class="v2-task-grid" id="v2TaskBody"></div>
 </div>
@@ -511,9 +518,9 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script src="data.js?v=20260821d"></script>
-<script src="data_v2.js?v=20260821d"></script>
-<script src="app.js?v=20260821d"></script>
-<script src="v2.js?v=20260821d"></script>
+<script src="data.js?v=20260821f"></script>
+<script src="data_v2.js?v=20260821f"></script>
+<script src="app.js?v=20260821f"></script>
+<script src="v2.js?v=20260821f"></script>
 </body>
 </html>

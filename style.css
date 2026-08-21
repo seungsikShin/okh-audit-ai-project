@@ -800,3 +800,17 @@ body.snapshot-mode #weeklyNav .tab.active{background:#FEF3C7;color:#92400E;}
 .kpi-card.accent{border-color:#A6CE59;box-shadow:0 0 0 1px #A6CE59 inset,var(--shadow-sm);}
 .kpi-card.accent .val{color:#4F6B1B;}
 .q-donut-cell.current{border-color:#9FE8E5;background:#F4FCFB;}
+
+/* -- 주기 변동 요약띠 -- */
+.v2-cycle-bar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  background:var(--primary-soft);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:10px 16px;margin-bottom:12px;font-size:12.5px;color:var(--text-2);}
+.v2-cycle-bar:empty{display:none;}
+.v2-cyc-label{font-weight:600;color:var(--primary-hover);}
+.v2-cyc-label b{font-weight:700;font-variant-numeric:tabular-nums;}
+.v2-cyc-stat b{font-weight:700;color:var(--text);font-variant-numeric:tabular-nums;margin-right:1px;}
+.v2-cyc-stat.up b{color:var(--primary);}
+.v2-cyc-note{margin-left:auto;color:var(--text-3);font-size:11.5px;}
+
+/* KPI 델타는 카드 맨 아래에 — order 미지정 시 0이라 라벨 위로 올라간다 */
+.kpi-card .kpi-delta{order:4;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);width:100%;}

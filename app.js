@@ -7,6 +7,8 @@ let _allLogs = [];   // Firebase에서 로드된 전체 변경 로그
 window._applyRemoteLog = function(logs) {
   _allLogs = logs;
   updateLog();
+  // 재편 트랙의 주기 변동 집계도 이 로그를 쓴다
+  if (typeof window._v2RenderCycle === 'function') window._v2RenderCycle();
 };
 let currentEditNo = null;
 let charts = {};

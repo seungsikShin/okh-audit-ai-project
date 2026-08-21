@@ -30,8 +30,8 @@ const V2_ACTION_META = {
   '수기유지': { tone: 'mute', desc: 'As-Is·To-Be 모두 AI 미활용. 수기 유지' }
 };
 
-const V2_PALETTE = ['#4F46E5','#3E35C9','#3FA97F','#67C29B','#0EA5E9','#6366F1',
-                    '#F59E0B','#EF4444','#8B5CF6','#14B8A6','#F97316','#64748B'];
+const V2_PALETTE = ['#04443F','#022E2B','#3FA97F','#67C29B','#00AAA6','#00AAA6',
+                    '#A6CE59','#EF4444','#8B5CF6','#14B8A6','#F97316','#64748B'];
 
 /* ── 조회 유틸 ─────────────────────────────────────────────── */
 function v2Task(no) { return v2data.find(t => t.no === Number(no)); }
@@ -63,11 +63,12 @@ window._v2ProrationFor = v2ProrationFor;
  *
  * V2_STATUS_MODE
  *   'inherit' — 착수상태는 상위 과제를 그대로 따른다. 재편안에 미착수(설계안)로
- *               적힌 과제19·20의 원과제는 미착수로 내려간다. [현행]
- *   'max'     — 자체·상위 중 하나라도 착수면 착수로 둔다.
+ *               적힌 과제19·20의 원과제는 미착수로 내려간다.
+ *   'max'     — 자체·상위 중 하나라도 착수면 착수로 둔다. 기존 보고된 착수 건이
+ *               재편 과제 때문에 미착수로 뒤집히지 않는다. [현행]
  */
 const V2_PROGRESS_MODE = 'max';
-const V2_STATUS_MODE = 'inherit';
+const V2_STATUS_MODE = 'max';
 
 /**
  * 원과제 80건 배열에 안분 진척률을 적용한다.
@@ -175,7 +176,7 @@ function renderV2Rollup() {
 }
 
 function v2ChartFont(size) { return { family: "'Pretendard',sans-serif", size: size || 11 }; }
-function v2Muted() { return getComputedStyle(document.documentElement).getPropertyValue('--text-3').trim() || '#667085'; }
+function v2Muted() { return getComputedStyle(document.documentElement).getPropertyValue('--text-3').trim() || '#737373'; }
 function v2Grid() { return getComputedStyle(document.documentElement).getPropertyValue('--grid').trim() || '#F3F4F6'; }
 
 /** 에이전트별 평균 진척률 — 막대 없이 퍼센트만 조밀하게 */
@@ -212,8 +213,8 @@ function renderV2PersonChart() {
     data: {
       labels: names,
       datasets: [
-        { label: '담당 과제 수', data: names.map(n => map[n].n), backgroundColor: '#4F46E5', borderRadius: 4, yAxisID: 'y', barThickness: 26 },
-        { label: '평균 진척률(%)', type: 'line', data: names.map(n => Math.round(map[n].sum / map[n].n)), borderColor: '#F59E0B', backgroundColor: '#F59E0B', yAxisID: 'y1', tension: .3, pointRadius: 4, borderWidth: 2 }
+        { label: '담당 과제 수', data: names.map(n => map[n].n), backgroundColor: '#04443F', borderRadius: 4, yAxisID: 'y', barThickness: 26 },
+        { label: '평균 진척률(%)', type: 'line', data: names.map(n => Math.round(map[n].sum / map[n].n)), borderColor: '#A6CE59', backgroundColor: '#A6CE59', yAxisID: 'y1', tension: .3, pointRadius: 4, borderWidth: 2 }
       ]
     },
     options: {
@@ -264,13 +265,13 @@ function renderV2QuarterStatus() {
         <span class="q-rate-pill start">착수율 <b>${startedPct}%</b></span>
         <span class="q-rate-pill prog">평균진척률 <b>${avgProg}%</b></span>
       </div>
-      <div class="q-donut-sub">완료 <b style="color:#4F46E5;">${g.완료}</b> · 진행 <b style="color:#0EA5E9;">${g.진행}</b> · 미착수 <b>${g.미착수}</b> / ${g.합}건</div>
+      <div class="q-donut-sub">완료 <b style="color:#04443F;">${g.완료}</b> · 진행 <b style="color:#00AAA6;">${g.진행}</b> · 미착수 <b>${g.미착수}</b> / ${g.합}건</div>
     </div>`;
   }).join('') + `<div class="q-donut-legend">
-    <span><i style="background:#4F46E5"></i>완료</span>
-    <span><i style="background:#A5B4FC"></i>진행 중</span>
-    <span><i style="background:#E5E7EB"></i>미착수</span>
-    <span><i style="background:#F59E0B"></i>평균 진척률 (안쪽 링)</span>
+    <span><i style="background:#04443F"></i>완료</span>
+    <span><i style="background:#00AAA6"></i>진행 중</span>
+    <span><i style="background:#E3E6E6"></i>미착수</span>
+    <span><i style="background:#A6CE59"></i>평균 진척률 (안쪽 링)</span>
     <span class="q-legend-note">바깥 링 = 착수 구성 · 안쪽 링 = 평균 진척률 · 권한대기 과제 제외</span>
   </div>`;
 
@@ -288,14 +289,14 @@ function renderV2QuarterStatus() {
           {
             label: '착수 구성',
             data: [g.완료, g.진행, g.미착수],
-            backgroundColor: ['#4F46E5', '#A5B4FC', '#E5E7EB'],
+            backgroundColor: ['#04443F', '#00AAA6', '#E3E6E6'],
             borderWidth: 0, weight: 1, hoverOffset: 3
           },
           // 안쪽 링 — 평균 진척률
           {
             label: '평균 진척률',
             data: [avgProg, 100 - avgProg],
-            backgroundColor: ['#F59E0B', '#FDF0DC'],
+            backgroundColor: ['#A6CE59', '#EDF4DE'],
             borderWidth: 2, borderColor: '#FFFFFF', weight: 0.62, hoverOffset: 0
           }
         ],
@@ -324,13 +325,13 @@ function renderV2QuarterStatus() {
           if (!arc) return;
           const ctx = chart.ctx; ctx.save();
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.font = "700 17px 'Pretendard',sans-serif"; ctx.fillStyle = '#4F46E5';
+          ctx.font = "700 17px 'Pretendard',sans-serif"; ctx.fillStyle = '#04443F';
           ctx.fillText(startedPct + '%', arc.x, arc.y - 13);
-          ctx.font = "600 9px 'Pretendard',sans-serif"; ctx.fillStyle = '#98A2B3';
+          ctx.font = "600 9px 'Pretendard',sans-serif"; ctx.fillStyle = '#737373';
           ctx.fillText('착수율', arc.x, arc.y - 1);
-          ctx.font = "700 14px 'Pretendard',sans-serif"; ctx.fillStyle = '#B45309';
+          ctx.font = "700 14px 'Pretendard',sans-serif"; ctx.fillStyle = '#4F6B1B';
           ctx.fillText(avgProg + '%', arc.x, arc.y + 12);
-          ctx.font = "600 9px 'Pretendard',sans-serif"; ctx.fillStyle = '#98A2B3';
+          ctx.font = "600 9px 'Pretendard',sans-serif"; ctx.fillStyle = '#737373';
           ctx.fillText('평균진척률', arc.x, arc.y + 23);
           ctx.restore();
         }
@@ -374,15 +375,15 @@ function renderV2Trend() {
     data: {
       labels: series.map(r => r.label),
       datasets: [
-        { label: '평균 진척률(%)', data: series.map(r => r.avg), yAxisID: 'y', borderColor: '#F59E0B', backgroundColor: 'rgba(245,158,11,.10)', fill: true, tension: .3, pointRadius: 4, pointBackgroundColor: '#F59E0B', borderWidth: 2 },
-        { label: '착수(건)', data: series.map(r => r.started), yAxisID: 'y2', borderColor: '#4F46E5', backgroundColor: '#4F46E5', fill: false, tension: .3, pointRadius: 3, borderWidth: 2 },
-        { label: '완료(건)', data: series.map(r => r.done), yAxisID: 'y2', borderColor: '#EC4899', backgroundColor: '#EC4899', fill: false, tension: .3, pointRadius: 3, borderWidth: 2 }
+        { label: '평균 진척률(%)', data: series.map(r => r.avg), yAxisID: 'y', borderColor: '#7BA428', backgroundColor: 'rgba(166,206,89,.22)', fill: true, tension: .3, pointRadius: 4, pointBackgroundColor: '#7BA428', borderWidth: 2 },
+        { label: '착수(건)', data: series.map(r => r.started), yAxisID: 'y2', borderColor: '#00AAA6', backgroundColor: '#00AAA6', fill: false, tension: .3, pointRadius: 3, borderWidth: 2 },
+        { label: '완료(건)', data: series.map(r => r.done), yAxisID: 'y2', borderColor: '#04443F', backgroundColor: '#04443F', fill: false, tension: .3, pointRadius: 3, borderWidth: 2 }
       ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
-      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', font: v2ChartFont(12), color: '#475467', padding: 14 } } },
+      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', font: v2ChartFont(12), color: '#525252', padding: 14 } } },
       scales: {
         y: { position: 'left', min: 0, max: 100, title: { display: true, text: '진척률(%)', font: v2ChartFont(10), color: v2Muted() }, grid: { color: v2Grid(), drawBorder: false }, ticks: { font: v2ChartFont(), color: v2Muted() } },
         y2: { position: 'right', min: 0, title: { display: true, text: '건수', font: v2ChartFont(10), color: v2Muted() }, grid: { display: false }, ticks: { font: v2ChartFont(), color: v2Muted(), precision: 0 } },

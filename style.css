@@ -12,7 +12,7 @@
   --border:#E4E8EE;--border-strong:#C9D0DB;--grid:#EDF0F5;
 
   /* 글자 */
-  --text:#0F1729;--text-2:#495468;--text-3:#79849A;
+  --text:#0A1A17;--text-2:#525252;--text-3:#737373;
 
   /* 강조 — 브랜드 그린 한 계열 */
   --primary:#0F6B47;--primary-hover:#0A5136;--primary-soft:#E7F4ED;
@@ -78,7 +78,7 @@ p{margin-bottom:1em;}
 .tab.active .ico{filter:none;}
 .sidebar .foot{margin-top:auto;padding:14px 16px;border-top:1px solid var(--border);}
 .user-card{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:var(--surface-2);}
-.user-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#818CF8,#0EA5E9);color:#fff;display:grid;place-items:center;font-weight:700;font-size:12px;}
+.user-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#818CF8,#00AAA6);color:#fff;display:grid;place-items:center;font-weight:700;font-size:12px;}
 .user-info{display:flex;flex-direction:column;line-height:1.2;}
 .user-info .nm{font-size:12px;font-weight:600;color:var(--text);}
 .user-info .role{font-size:11px;color:var(--text-2);}
@@ -130,20 +130,20 @@ body[data-track="legacy"] .tb-track .dot{background:var(--text-3);}
 .kpi-delta{font-size:11px;font-weight:600;line-height:1.2;letter-spacing:0;min-height:13px;}
 .kpi-delta.up{color:#067647;}
 .kpi-delta.down{color:#B42318;}
-.kpi-delta.flat{color:#98A2B3;}
+.kpi-delta.flat{color:#737373;}
 
 /* 분기별 착수 현황 (미니 도넛) */
 .q-donut-grid{display:flex;gap:14px;flex-wrap:wrap;align-items:stretch;}
 .q-donut-cell{position:relative;flex:1 1 170px;min-width:160px;display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 10px 14px;border:1px solid var(--border);border-radius:12px;background:var(--surface);}
-.q-donut-cell.current{border-color:#C7CBFB;background:#F8F8FE;}
+.q-donut-cell.current{border-color:#9FE8E5;background:#F4FCFB;}
 .q-now-badge{position:absolute;top:10px;right:10px;font-size:10px;font-weight:700;color:#067647;background:#ECFDF3;border:1px solid #ABEFC6;border-radius:999px;padding:2px 8px;}
 .q-donut-wrap{position:relative;width:118px;height:118px;}
 .q-donut-label{font-size:13px;font-weight:700;color:var(--text);}
 .q-donut-rate{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
 .q-rate-pill{font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;color:var(--text-2);}
 .q-rate-pill b{font-weight:700;}
-.q-rate-pill.start{background:#EEF0FE;color:#4F46E5;}
-.q-rate-pill.prog{background:#FDF0DC;color:#B45309;}
+.q-rate-pill.start{background:#C0FCF8;color:#04443F;}
+.q-rate-pill.prog{background:#EDF4DE;color:#4F6B1B;}
 .q-donut-sub{font-size:11px;color:var(--text-2);text-align:center;}
 .q-donut-legend{flex-basis:100%;display:flex;gap:16px;justify-content:center;align-items:center;padding-top:6px;font-size:12px;color:var(--text-2);flex-wrap:wrap;}
 .q-donut-legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;}
@@ -246,7 +246,7 @@ td.cell-no{width:38px;text-align:center;color:var(--text-3);font-weight:600;}
 .agent-card h4{font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border);letter-spacing:0;}
 .agent-card .ag-stat{display:flex;justify-content:space-between;font-size:12px;color:var(--text-2);margin-bottom:8px;}
 .agent-card .ag-bar-wrap{height:6px;background:var(--surface-hover);border-radius:99px;overflow:hidden;margin-bottom:10px;}
-.agent-card .ag-bar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#4F46E5,#6366F1);}
+.agent-card .ag-bar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#04443F,#00AAA6);}
 .agent-card .ag-tasks{font-size:11px;color:var(--text-2);}
 .agent-card .ag-summary{font-size:12px;color:var(--text-2);line-height:1.5;margin-bottom:12px;min-height:18px;}
 /* ── 에이전트별 — 운영 플랫폼 + 구현 AI 선택 ── */
@@ -303,7 +303,7 @@ td.cell-no{width:38px;text-align:center;color:var(--text-3);font-weight:600;}
 .agent-card .ag-badge-row{display:flex;align-items:flex-start;gap:6px;margin-bottom:6px;}
 .agent-card .ag-badge-list{display:flex;flex-wrap:wrap;gap:4px;flex:1;}
 .ag-badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;line-height:1.5;white-space:nowrap;}
-.ag-badge.ai{background:#E0F2FE;color:#0369A1;}
+.ag-badge.ai{background:#DFFBF9;color:#0369A1;}
 .ag-badge.build{background:var(--primary-soft);color:var(--primary-hover);}
 .ag-badge.est{position:relative;}
 .agent-card .ag-est-flag{font-size:10px;color:var(--danger);font-weight:700;margin-left:4px;}
@@ -671,8 +671,8 @@ body.snapshot-mode #weeklyNav .tab.active{background:#FEF3C7;color:#92400E;}
    적용한다. 강조색은 기존 브랜드 그린을 그대로 쓴다.
    ══════════════════════════════════════════════════════════════ */
 :root{
-  --bg:#F4F6F9;
-  --border:#EDF0F4;--border-strong:#DCE1E9;
+  --bg:#F5F5F5;
+  --border:#E6E8E8;--border-strong:#D2D6D6;
   --radius-sm:10px;--radius:16px;--radius-lg:16px;
   --shadow-sm:0 1px 2px rgba(16,24,40,.04);
   --shadow:0 2px 6px rgba(16,24,40,.05),0 1px 2px rgba(16,24,40,.03);
@@ -721,9 +721,9 @@ body.snapshot-mode #weeklyNav .tab.active{background:#FEF3C7;color:#92400E;}
 
 /* ── 강조색: 브랜드 그린 → 블루 ────────────────────────────── */
 :root{
-  --primary:#4F46E5;--primary-hover:#3E35C9;--primary-soft:#EEF0FE;
-  --primary-ring:rgba(79,70,229,.18);
-  --accent:#6366F1;--accent-soft:#E8E9FD;
+  --primary:#04443F;--primary-hover:#022E2B;--primary-soft:#C0FCF8;
+  --primary-ring:rgba(0,170,166,.22);
+  --accent:#00AAA6;--accent-soft:#DFFBF9;
 }
 
 /* ── 재편: 에이전트별 평균 진척률 (퍼센트 목록) ──────────────── */
@@ -751,21 +751,52 @@ body.snapshot-mode #weeklyNav .tab.active{background:#FEF3C7;color:#92400E;}
    · 앰버   = 평균 진척률 전용 · 스카이 / 핑크 = 보조 지표
    ══════════════════════════════════════════════════════════════ */
 :root{
-  --primary:#4F46E5;--primary-hover:#3E35C9;--primary-soft:#EEF0FE;
-  --primary-ring:rgba(79,70,229,.18);
-  --accent:#6366F1;--accent-soft:#E8E9FD;
-  --amber:#F59E0B;--amber-deep:#B45309;--amber-soft:#FDF0DC;
-  --sky:#0EA5E9;--pink:#EC4899;
+  --primary:#04443F;--primary-hover:#022E2B;--primary-soft:#C0FCF8;
+  --primary-ring:rgba(0,170,166,.22);
+  --accent:#00AAA6;--accent-soft:#DFFBF9;
+  --lime:#A6CE59;--lime-deep:#4F6B1B;--lime-soft:#EDF4DE;
+  --sky:#00AAA6;--pink:#04443F;
 }
 
 /* KPI 아이콘 칩 — 카드마다 다른 색으로 돌린다 */
-.kpi-row .kpi-card:nth-child(4n+1) .kpi-ico{background:#EEF0FE;color:#4F46E5;}
-.kpi-row .kpi-card:nth-child(4n+2) .kpi-ico{background:#FDF0DC;color:#B45309;}
-.kpi-row .kpi-card:nth-child(4n+3) .kpi-ico{background:#E0F2FE;color:#0284C7;}
-.kpi-row .kpi-card:nth-child(4n+4) .kpi-ico{background:#FCE7F3;color:#DB2777;}
-.kpi-row .kpi-card.accent .kpi-ico{background:#F59E0B;color:#fff;}
-.kpi-card.accent{border-color:#F59E0B;box-shadow:0 0 0 1px #F59E0B inset,var(--shadow-sm);}
-.kpi-card.accent .val{color:#B45309;}
+.kpi-row .kpi-card:nth-child(4n+1) .kpi-ico{background:#C0FCF8;color:#04443F;}
+.kpi-row .kpi-card:nth-child(4n+2) .kpi-ico{background:#EDF4DE;color:#4F6B1B;}
+.kpi-row .kpi-card:nth-child(4n+3) .kpi-ico{background:#DFFBF9;color:#047A77;}
+.kpi-row .kpi-card:nth-child(4n+4) .kpi-ico{background:#EAF2DA;color:#022E2B;}
+.kpi-row .kpi-card.accent .kpi-ico{background:#A6CE59;color:#2C3D0E;}
+.kpi-card.accent{border-color:#A6CE59;box-shadow:0 0 0 1px #A6CE59 inset,var(--shadow-sm);}
+.kpi-card.accent .val{color:#4F6B1B;}
 
 /* 진척률 100% 표기는 앰버로 통일 */
-.v2-pct-val.full{color:#B45309;}
+.v2-pct-val.full{color:#4F6B1B;}
+
+/* ══════════════════════════════════════════════════════════════
+   팔레트 — 딥틸 + 틸 + 라임 (첨부 색상표)
+   · 딥틸 #04443F = 강조 / 완료 / 본문 강조
+   · 틸   #00AAA6 = 진행 중 / 보조 지표
+   · 라임 #A6CE59 = 평균 진척률 전용 (텍스트는 #4F6B1B)
+   · 페일시안 #C0FCF8 = 강조 배경
+   · 뉴트럴 #000000 · #525252 · #737373 · #F5F5F5 · #FFFFFF
+   ══════════════════════════════════════════════════════════════ */
+:root{
+  --bg:#F5F5F5;--surface:#FFFFFF;--surface-2:#FAFAFA;--surface-hover:#F0F1F1;
+  --border:#E6E8E8;--border-strong:#D2D6D6;--grid:#EFF1F1;
+
+  --text:#0A1A17;--text-2:#525252;--text-3:#737373;
+
+  --primary:#04443F;--primary-hover:#022E2B;--primary-soft:#C0FCF8;
+  --primary-ring:rgba(0,170,166,.22);
+  --accent:#00AAA6;--accent-soft:#DFFBF9;
+
+  --lime:#A6CE59;--lime-deep:#4F6B1B;--lime-soft:#EDF4DE;
+  --teal:#00AAA6;--teal-deep:#047A77;
+}
+/* KPI 아이콘 칩 — 딥틸 / 라임 / 틸 / 그레이 순환 */
+.kpi-row .kpi-card:nth-child(4n+1) .kpi-ico{background:#C0FCF8;color:#04443F;}
+.kpi-row .kpi-card:nth-child(4n+2) .kpi-ico{background:#EDF4DE;color:#4F6B1B;}
+.kpi-row .kpi-card:nth-child(4n+3) .kpi-ico{background:#DFFBF9;color:#047A77;}
+.kpi-row .kpi-card:nth-child(4n+4) .kpi-ico{background:#F0F1F1;color:#525252;}
+.kpi-row .kpi-card.accent .kpi-ico{background:#A6CE59;color:#2C3D0E;}
+.kpi-card.accent{border-color:#A6CE59;box-shadow:0 0 0 1px #A6CE59 inset,var(--shadow-sm);}
+.kpi-card.accent .val{color:#4F6B1B;}
+.q-donut-cell.current{border-color:#9FE8E5;background:#F4FCFB;}

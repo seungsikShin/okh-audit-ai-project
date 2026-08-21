@@ -143,13 +143,13 @@ function renderDashboard() {
     charts['chartPerson'] = new Chart(perCanvas, {
       type:'bar',
       data:{labels:perLabels,datasets:[
-        {label:'착수',data:perLabels.map(p=>perMap[p].착수),backgroundColor:'#4F46E5',borderRadius:6,maxBarThickness:36},
-        {label:'미착수',data:perLabels.map(p=>perMap[p].미착수),backgroundColor:'#E5E7EB',borderRadius:6,maxBarThickness:36}
+        {label:'착수',data:perLabels.map(p=>perMap[p].착수),backgroundColor:'#04443F',borderRadius:6,maxBarThickness:36},
+        {label:'미착수',data:perLabels.map(p=>perMap[p].미착수),backgroundColor:'#E3E6E6',borderRadius:6,maxBarThickness:36}
       ]},
       options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'circle',font:{family:"'Pretendard',sans-serif",size:12},color:'#475467',padding:14}},
+        plugins:{legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'circle',font:{family:"'Pretendard',sans-serif",size:12},color:'#525252',padding:14}},
           tooltip:{callbacks:{footer(items){const i=items[0].dataIndex;return `평균 진척률 ${perAvg[i]}%`;}}}},
-        scales:{x:{stacked:true,grid:{display:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#475467'}},y:{stacked:true,grid:{color:'#F3F4F6',drawBorder:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#98A2B3'}}}}
+        scales:{x:{stacked:true,grid:{display:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#525252'}},y:{stacked:true,grid:{color:'#F3F4F6',drawBorder:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#737373'}}}}
     });
   }
 
@@ -170,14 +170,14 @@ function renderDashboard() {
     charts['chartArea'] = new Chart(areaCanvas, {
       type:'bar',
       data:{labels:areaLabels,datasets:[
-        {label:'착수',data:areaLabels.map(a=>areaMap[a].착수),backgroundColor:'#4F46E5',borderRadius:6,maxBarThickness:18},
-        {label:'미착수',data:areaLabels.map(a=>areaMap[a].미착수),backgroundColor:'#E5E7EB',borderRadius:6,maxBarThickness:18}
+        {label:'착수',data:areaLabels.map(a=>areaMap[a].착수),backgroundColor:'#04443F',borderRadius:6,maxBarThickness:18},
+        {label:'미착수',data:areaLabels.map(a=>areaMap[a].미착수),backgroundColor:'#E3E6E6',borderRadius:6,maxBarThickness:18}
       ]},
       options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'circle',font:{family:"'Pretendard',sans-serif",size:12},color:'#475467',padding:14}},
+        plugins:{legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'circle',font:{family:"'Pretendard',sans-serif",size:12},color:'#525252',padding:14}},
           tooltip:{callbacks:{footer(items){const i=items[0].dataIndex;return `평균 진척률 ${areaAvg[i]}%`;}}}},
-        scales:{x:{stacked:true,grid:{color:'#F3F4F6',drawBorder:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#98A2B3'}},
-          y:{stacked:true,grid:{display:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#475467'},afterFit(scale){scale.width=170;}}}}
+        scales:{x:{stacked:true,grid:{color:'#F3F4F6',drawBorder:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#737373'}},
+          y:{stacked:true,grid:{display:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#525252'},afterFit(scale){scale.width=170;}}}}
     });
   }
 }
@@ -218,12 +218,12 @@ function renderQuarterStatus() {
         <span class="q-rate-pill start">착수율 <b>${startedPct}%</b></span>
         <span class="q-rate-pill prog">평균진척률 <b>${avgProg}%</b></span>
       </div>
-      <div class="q-donut-sub">완료 <b style="color:#4F46E5;">${g.완료}</b> · 진행 <b style="color:#0EA5E9;">${g.진행}</b> · 미착수 <b>${g.미착수}</b> / ${g.합}건</div>
+      <div class="q-donut-sub">완료 <b style="color:#04443F;">${g.완료}</b> · 진행 <b style="color:#00AAA6;">${g.진행}</b> · 미착수 <b>${g.미착수}</b> / ${g.합}건</div>
     </div>`;
   }).join('') + `<div class="q-donut-legend">
-    <span><i style="background:#4F46E5"></i>완료</span>
-    <span><i style="background:#A5B4FC"></i>진행 중</span>
-    <span><i style="background:#E5E7EB"></i>미착수</span>
+    <span><i style="background:#04443F"></i>완료</span>
+    <span><i style="background:#00AAA6"></i>진행 중</span>
+    <span><i style="background:#E3E6E6"></i>미착수</span>
     <span class="q-legend-note">도넛 중앙 = 착수율(완료+진행)</span>
   </div>`;
   qs.forEach((q,i)=>{
@@ -237,16 +237,16 @@ function renderQuarterStatus() {
         const ctx = chart.ctx;
         ctx.save();
         ctx.textAlign='center'; ctx.textBaseline='middle';
-        ctx.font="700 19px 'Pretendard',sans-serif"; ctx.fillStyle='#101828';
+        ctx.font="700 19px 'Pretendard',sans-serif"; ctx.fillStyle='#0A1A17';
         ctx.fillText(startedPct+'%', arc.x, arc.y-7);
-        ctx.font="600 10px 'Pretendard',sans-serif"; ctx.fillStyle='#98A2B3';
+        ctx.font="600 10px 'Pretendard',sans-serif"; ctx.fillStyle='#737373';
         ctx.fillText('착수율', arc.x, arc.y+11);
         ctx.restore();
       }
     };
     charts['qd_'+i] = new Chart(document.getElementById('qd_'+i), {
       type:'doughnut',
-      data:{labels:['완료','진행 중','미착수'],datasets:[{data:[g.완료,g.진행,g.미착수],backgroundColor:['#4F46E5','#A5B4FC','#E5E7EB'],borderWidth:0,hoverOffset:4}]},
+      data:{labels:['완료','진행 중','미착수'],datasets:[{data:[g.완료,g.진행,g.미착수],backgroundColor:['#04443F','#00AAA6','#E3E6E6'],borderWidth:0,hoverOffset:4}]},
       options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{display:false},tooltip:{callbacks:{label(item){return ` ${item.label} ${item.parsed}건 (${g.합?Math.round(item.parsed/g.합*100):0}%)`;}}}}},
       plugins:[centerText]
     });
@@ -321,7 +321,7 @@ function renderRiskCard() {
   // 스냅샷 보기 모드: '지연' 판정은 오늘 날짜 기준이라 과거 스냅샷에 적용하면 오해를 부름
   // (당시엔 지연이 아니던 과제가 지연으로 표시됨) → 라이브에서만 계산
   if (viewingWeek !== null) {
-    el.innerHTML = `<div style="padding:10px 2px;color:#98A2B3;font-size:13px;">📌 과거 스냅샷 보기 중에는 지연 판정을 표시하지 않습니다 (지연은 현재 라이브 기준으로만 계산).</div>`;
+    el.innerHTML = `<div style="padding:10px 2px;color:#737373;font-size:13px;">📌 과거 스냅샷 보기 중에는 지연 판정을 표시하지 않습니다 (지연은 현재 라이브 기준으로만 계산).</div>`;
     return;
   }
   const now = new Date();
@@ -339,10 +339,10 @@ function renderRiskCard() {
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:${overdue.length?'12px':'0'};">
       <span style="font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px;background:${overdue.length?'#FEF3F2':'#ECFDF3'};border:1px solid ${overdue.length?'#FECDCA':'#ABEFC6'};color:${overdue.length?'#B42318':'#067647'};">지연 ${overdue.length}건</span>
       <span style="font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px;background:#FFFAEB;border:1px solid #FEDF89;color:#B54708;">이번 분기(${curQLabel}) 마감 ${dueNow.length}건</span>
-      <span style="font-size:11px;color:#98A2B3;align-self:center;">목표완료 분기 경과 + 진척률 100% 미만 기준 · 이번 분기 마감 건은 일정 탭 참고</span>
+      <span style="font-size:11px;color:#737373;align-self:center;">목표완료 분기 경과 + 진척률 100% 미만 기준 · 이번 분기 마감 건은 일정 탭 참고</span>
     </div>`;
   if (overdue.length === 0) {
-    el.innerHTML = chips + `<div style="padding:6px 2px;color:#475467;font-size:13px;">지연 과제가 없습니다 🎉</div>`;
+    el.innerHTML = chips + `<div style="padding:6px 2px;color:#525252;font-size:13px;">지연 과제가 없습니다 🎉</div>`;
     return;
   }
   const rows = overdue.map(r=>{
@@ -351,18 +351,18 @@ function renderRiskCard() {
     const hasReason = !!(r.지연사유 && String(r.지연사유).trim());
     return `<div style="display:flex;flex-direction:column;gap:8px;padding:9px 12px;border:1px solid #FECDCA;border-left:3px solid #D92D20;border-radius:10px;background:#fff;transition:box-shadow .15s;" onmouseover="this.style.boxShadow='0 3px 10px rgba(217,45,32,.12)'" onmouseout="this.style.boxShadow=''">
       <div style="display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="goToTask(${r.no})" title="클릭하면 과제목록에서 보기">
-        <span style="flex:0 0 44px;color:#667085;font-weight:600;font-size:12px;">No.${r.no}</span>
-        <span style="flex:1;min-width:0;font-size:13px;color:#101828;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml((r.태스크||'').split('\n')[0])}</span>
-        <span style="flex:0 0 auto;font-size:12px;color:#475467;">${escapeHtml(r.담당자||'-')}</span>
+        <span style="flex:0 0 44px;color:#737373;font-weight:600;font-size:12px;">No.${r.no}</span>
+        <span style="flex:1;min-width:0;font-size:13px;color:#0A1A17;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml((r.태스크||'').split('\n')[0])}</span>
+        <span style="flex:0 0 auto;font-size:12px;color:#525252;">${escapeHtml(r.담당자||'-')}</span>
         <span style="flex:0 0 auto;font-size:11px;font-weight:700;color:#B42318;background:#FEF3F2;border:1px solid #FECDCA;border-radius:999px;padding:2px 8px;">${normalizeTarget(r.목표완료)}</span>
         <span class="${r.착수상태==='착수'?'badge-착수':'badge-미착수'}" style="flex:0 0 auto;">${r.착수상태||'-'}</span>
         <span style="flex:0 0 110px;display:flex;align-items:center;gap:6px;">
-          <span style="flex:1;height:6px;background:#EEF0FE;border-radius:999px;overflow:hidden;"><span style="display:block;height:100%;width:${pct}%;background:${pct>=50?'#F59E0B':'#D92D20'};border-radius:999px;"></span></span>
-          <span style="font-size:11px;font-weight:700;color:#475467;width:32px;text-align:right;">${pct}%</span>
+          <span style="flex:1;height:6px;background:#C0FCF8;border-radius:999px;overflow:hidden;"><span style="display:block;height:100%;width:${pct}%;background:${pct>=50?'#A6CE59':'#D92D20'};border-radius:999px;"></span></span>
+          <span style="font-size:11px;font-weight:700;color:#525252;width:32px;text-align:right;">${pct}%</span>
         </span>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-        <span style="flex:0 0 auto;font-size:11px;font-weight:700;color:${hasReason?'#B54708':'#98A2B3'};">📝 지연사유</span>
+        <span style="flex:0 0 auto;font-size:11px;font-weight:700;color:${hasReason?'#B54708':'#737373'};">📝 지연사유</span>
         <input type="text" class="risk-reason-input" data-no="${r.no}" value="${reason}"
           placeholder="왜 지연되었는지 입력 (Enter 또는 클릭 해제 시 저장)"
           onkeydown="if(event.key==='Enter'){this.blur();}"
@@ -449,7 +449,7 @@ function renderSchedule() {
         tx+=ctx.measureText(sTxt).width+gap;
         ctx.strokeStyle='#EAECF0'; ctx.beginPath(); ctx.moveTo(tx,y+5); ctx.lineTo(tx,y+H-5); ctx.stroke();
         tx+=1+gap;
-        ctx.fillStyle='#0EA5E9'; ctx.beginPath(); ctx.arc(tx+dot/2,midY,dot/2,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle='#00AAA6'; ctx.beginPath(); ctx.arc(tx+dot/2,midY,dot/2,0,Math.PI*2); ctx.fill();
         tx+=dot+dotGap; ctx.fillStyle='#175CD3'; ctx.fillText(pTxt,tx,midY);
       });
       ctx.restore();
@@ -461,9 +461,9 @@ function renderSchedule() {
     type:'bar',
     data:{labels:qs,datasets:[
       {label:'착수',data:qs.map(q=>qMap[q].착수),backgroundColor:'#818CF8',borderRadius:6,maxBarThickness:40},
-      {label:'미착수',data:qs.map(q=>qMap[q].미착수),backgroundColor:'#E5E7EB',borderRadius:6,maxBarThickness:40}
+      {label:'미착수',data:qs.map(q=>qMap[q].미착수),backgroundColor:'#E3E6E6',borderRadius:6,maxBarThickness:40}
     ]},
-    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:8}},plugins:{legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'circle',font:{family:"'Pretendard',sans-serif",size:12},color:'#475467',padding:14}},tooltip:{callbacks:{title(items){return qs[items[0].dataIndex];},footer(items){const i=items[0].dataIndex;return `착수율 ${startRates[i]}%  ·  평균 진척률 ${avgProgs[i]}%`;}}}},scales:{x:{grid:{display:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#98A2B3'}},y:{suggestedMax:Math.ceil(maxVal*1.25),grid:{color:'#F3F4F6',drawBorder:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#98A2B3'}}}},
+    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:8}},plugins:{legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'circle',font:{family:"'Pretendard',sans-serif",size:12},color:'#525252',padding:14}},tooltip:{callbacks:{title(items){return qs[items[0].dataIndex];},footer(items){const i=items[0].dataIndex;return `착수율 ${startRates[i]}%  ·  평균 진척률 ${avgProgs[i]}%`;}}}},scales:{x:{grid:{display:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#737373'}},y:{suggestedMax:Math.ceil(maxVal*1.25),grid:{color:'#F3F4F6',drawBorder:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#737373'}}}},
     plugins:[quarterRatePlugin]
   });
 
@@ -472,24 +472,24 @@ function renderSchedule() {
   listDiv.innerHTML = qs.map((q,qi)=>`
     <div style="margin-bottom:18px;">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-        <span style="display:inline-flex;align-items:center;gap:8px;font-weight:700;color:#4F46E5;padding:6px 14px;background:#EEF0FE;border:1px solid #C7CBFB;border-radius:999px;font-size:13px;letter-spacing:0;">${q} <span style="color:#3E35C9;">·</span> <span style="color:#475467;font-weight:600;">${qMap[q].items.length}건</span></span>
-        <span style="font-size:12px;font-weight:600;color:#475467;padding:5px 11px;background:#F2F4F7;border:1px solid #EAECF0;border-radius:999px;">착수율 <span style="color:#4F46E5;font-weight:700;">${startRates[qi]}%</span></span>
-        <span style="font-size:12px;font-weight:600;color:#475467;padding:5px 11px;background:#F2F4F7;border:1px solid #EAECF0;border-radius:999px;">평균 진척률 <span style="color:#4F46E5;font-weight:700;">${avgProgs[qi]}%</span></span>
+        <span style="display:inline-flex;align-items:center;gap:8px;font-weight:700;color:#04443F;padding:6px 14px;background:#C0FCF8;border:1px solid #9FE8E5;border-radius:999px;font-size:13px;letter-spacing:0;">${q} <span style="color:#022E2B;">·</span> <span style="color:#525252;font-weight:600;">${qMap[q].items.length}건</span></span>
+        <span style="font-size:12px;font-weight:600;color:#525252;padding:5px 11px;background:#F2F4F7;border:1px solid #EAECF0;border-radius:999px;">착수율 <span style="color:#04443F;font-weight:700;">${startRates[qi]}%</span></span>
+        <span style="font-size:12px;font-weight:600;color:#525252;padding:5px 11px;background:#F2F4F7;border:1px solid #EAECF0;border-radius:999px;">평균 진척률 <span style="color:#04443F;font-weight:700;">${avgProgs[qi]}%</span></span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;">
         ${qMap[q].items.map(it=>{const pct=Math.round((it.진척률||0)*100);return `
-          <div style="background:#fff;border:1px solid #EAECF0;border-radius:12px;padding:12px 14px;font-size:13px;cursor:pointer;transition:all .15s;" onclick="goToTask(${it.no})" onmouseover="this.style.boxShadow='0 4px 12px rgba(20,123,82,.12)';this.style.borderColor='#C7CBFB';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='';this.style.borderColor='#EAECF0';this.style.transform=''">
+          <div style="background:#fff;border:1px solid #EAECF0;border-radius:12px;padding:12px 14px;font-size:13px;cursor:pointer;transition:all .15s;" onclick="goToTask(${it.no})" onmouseover="this.style.boxShadow='0 4px 12px rgba(20,123,82,.12)';this.style.borderColor='#9FE8E5';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='';this.style.borderColor='#EAECF0';this.style.transform=''">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
-              <span style="color:#667085;font-weight:600;">No.${it.no}</span>
+              <span style="color:#737373;font-weight:600;">No.${it.no}</span>
               <span class="${it.착수상태==='착수'?'badge-착수':'badge-미착수'}">${it.착수상태||'-'}</span>
             </div>
-            <div style="color:#101828;font-size:14px;font-weight:500;line-height:1.5;">${it.태스크.split('\n')[0]}</div>
-            <div style="margin-top:6px;color:#475467;">${it.담당자||'-'}</div>
+            <div style="color:#0A1A17;font-size:14px;font-weight:500;line-height:1.5;">${it.태스크.split('\n')[0]}</div>
+            <div style="margin-top:6px;color:#525252;">${it.담당자||'-'}</div>
             <div style="margin-top:8px;">
-              <div style="display:flex;justify-content:space-between;font-size:11px;color:#667085;margin-bottom:3px;"><span>진척률</span><span style="color:#4F46E5;font-weight:700;">${pct}%</span></div>
-              <div style="height:6px;background:#EEF0FE;border-radius:999px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:#4F46E5;border-radius:999px;"></div></div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:#737373;margin-bottom:3px;"><span>진척률</span><span style="color:#04443F;font-weight:700;">${pct}%</span></div>
+              <div style="height:6px;background:#C0FCF8;border-radius:999px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:#04443F;border-radius:999px;"></div></div>
             </div>
-            <div style="margin-top:8px;color:#4F46E5;font-size:11px;font-weight:600;letter-spacing:0;">→ 과제목록에서 보기</div>
+            <div style="margin-top:8px;color:#04443F;font-size:11px;font-weight:600;letter-spacing:0;">→ 과제목록에서 보기</div>
           </div>`;}).join('')}
       </div>
     </div>`).join('');
@@ -710,7 +710,7 @@ function renderAgents() {
         <span style="color:var(--text-3);">미착수 <b>${v.미착수}</b></span>
       </div>
       <div class="ag-bar-wrap"><div class="ag-bar-fill" style="width:${avg}%"></div></div>
-      <div class="ag-stat"><span>평균 진척률</span><span style="font-weight:700;color:#4F46E5;">${avg}%</span></div>
+      <div class="ag-stat"><span>평균 진척률</span><span style="font-weight:700;color:#04443F;">${avg}%</span></div>
       ${deadlineHtml}
     </div>`;
   }).join('');
@@ -911,7 +911,7 @@ function renderPlanCells(r) {
   if (!p.matched) {
     // AI 미활용 등 패턴 없는 행: As-Is에 원문, To-Be에 미활용 배지
     asisCell = `<div class="cell-text" style="font-size:13px;color:var(--text-2);">${p.asis || '-'}</div>`;
-    tobeCell = `<span style="background:#EEF0FE;color:#475467;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700;">AI 미활용</span>`;
+    tobeCell = `<span style="background:#C0FCF8;color:#525252;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700;">AI 미활용</span>`;
   } else {
     asisCell = `<div class="cell-text" style="font-size:13px;color:var(--text-2);">${p.asis}</div>`;
     if (p.structured) {
@@ -944,14 +944,14 @@ function renderTable(rows) {
     const isModified = changes[r.no]!==undefined;
     const pct = Math.round(r.진척률*100);
     // SHIFT 배지
-    const shiftColors = {S:'#818CF8',H:'#0EA5E9',I:'#6366F1',T:'#F59E0B',SH:'#4F46E5',F:'#64748B'};
-    const shiftBadge = r.shift ? `<span style="background:${shiftColors[r.shift]||'#999'};color:#fff;border-radius:10px;padding:2px 7px;font-size:11px;font-weight:700;letter-spacing:0;">${r.shift}</span>` : '<span style="color:#667085;font-size:11px;">-</span>';
+    const shiftColors = {S:'#818CF8',H:'#00AAA6',I:'#00AAA6',T:'#A6CE59',SH:'#04443F',F:'#64748B'};
+    const shiftBadge = r.shift ? `<span style="background:${shiftColors[r.shift]||'#999'};color:#fff;border-radius:10px;padding:2px 7px;font-size:11px;font-weight:700;letter-spacing:0;">${r.shift}</span>` : '<span style="color:#737373;font-size:11px;">-</span>';
     // 우선순위 배지
-    const priorityColors = {'상':'#EF4444','중':'#F59E0B','하':'#94A3B8'};
-    const priorityBadge = r.우선순위 ? `<span style="background:${priorityColors[r.우선순위]||'#999'};color:#fff;border-radius:10px;padding:2px 7px;font-size:11px;font-weight:700;letter-spacing:0;">${r.우선순위}</span>` : '<span style="color:#667085;font-size:11px;">-</span>';
+    const priorityColors = {'상':'#EF4444','중':'#A6CE59','하':'#94A3B8'};
+    const priorityBadge = r.우선순위 ? `<span style="background:${priorityColors[r.우선순위]||'#999'};color:#fff;border-radius:10px;padding:2px 7px;font-size:11px;font-weight:700;letter-spacing:0;">${r.우선순위}</span>` : '<span style="color:#737373;font-size:11px;">-</span>';
     // AI 활용 여부 배지
     const isAiUse = isAiUseRow(r);
-    const aiUseBadge = !r.활용계획 || r.활용계획.trim()==='' ? '<span style="color:#667085;font-size:11px;">-</span>' : isAiUse ? '<span style="background:#e3f2fd;color:#1565c0;border-radius:10px;padding:2px 7px;font-size:11px;font-weight:700;letter-spacing:0;">AI 활용</span>' : '<span style="background:#EEF0FE;color:#475467;border-radius:10px;padding:2px 7px;font-size:11px;font-weight:700;letter-spacing:0;">AI 미활용</span>';
+    const aiUseBadge = !r.활용계획 || r.활용계획.trim()==='' ? '<span style="color:#737373;font-size:11px;">-</span>' : isAiUse ? '<span style="background:#e3f2fd;color:#1565c0;border-radius:10px;padding:2px 7px;font-size:11px;font-weight:700;letter-spacing:0;">AI 활용</span>' : '<span style="background:#C0FCF8;color:#525252;border-radius:10px;padding:2px 7px;font-size:11px;font-weight:700;letter-spacing:0;">AI 미활용</span>';
     const statusBadge = r.착수상태==='착수'?`<span class="badge-착수">착수</span>`:r.착수상태==='미착수'?`<span class="badge-미착수">미착수</span>`:`<span class="badge-empty">-</span>`;
     const tr = document.createElement('tr');
     if(isModified) tr.classList.add('modified');
@@ -1434,23 +1434,23 @@ function renderWeeklyChart() {
   const el = document.getElementById('weeklyTable');
   if (!el) return;
   if (keys.length === 0) {
-    el.innerHTML = '<div style="color:#667085;padding:16px;font-size:13px;">이번 주 데이터 기록 중...</div>';
+    el.innerHTML = '<div style="color:#737373;padding:16px;font-size:13px;">이번 주 데이터 기록 중...</div>';
     return;
   }
   const items = keys.map((k, i) => {
     const s = weeklyHistory[k];
     const isLatest = i === 0;
-    return `<div style="display:flex;align-items:center;gap:0;padding:12px 14px;border-bottom:1px solid #EAECF0;background:${isLatest?'#EEF0FE':'#fff'};${isLatest?'border-left:3px solid #4F46E5;':'border-left:3px solid transparent;'}">
-      <div style="width:130px;font-weight:${isLatest?'700':'500'};font-size:13px;color:#101828;">
-        ${s.label}${isLatest?' <span style="font-size:11px;color:#4F46E5;">●</span>':''}
+    return `<div style="display:flex;align-items:center;gap:0;padding:12px 14px;border-bottom:1px solid #EAECF0;background:${isLatest?'#C0FCF8':'#fff'};${isLatest?'border-left:3px solid #04443F;':'border-left:3px solid transparent;'}">
+      <div style="width:130px;font-weight:${isLatest?'700':'500'};font-size:13px;color:#0A1A17;">
+        ${s.label}${isLatest?' <span style="font-size:11px;color:#04443F;">●</span>':''}
       </div>
       <div style="flex:1;display:flex;gap:24px;flex-wrap:wrap;">
-        <span style="font-size:13px;color:#475467;">착수 <strong style="color:#4F46E5;">${s.착수}건</strong></span>
-        <span style="font-size:13px;color:#475467;">미착수 <strong style="color:#667085;">${s.미착수}건</strong></span>
-        <span style="font-size:13px;color:#475467;">평균진척률 <strong style="color:#4F46E5;">${s.평균진척률}%</strong></span>
-        <span style="font-size:13px;color:#475467;">완료 <strong style="color:#4F46E5;">${s.완료}건 (${s.완료율}%)</strong></span>
+        <span style="font-size:13px;color:#525252;">착수 <strong style="color:#04443F;">${s.착수}건</strong></span>
+        <span style="font-size:13px;color:#525252;">미착수 <strong style="color:#737373;">${s.미착수}건</strong></span>
+        <span style="font-size:13px;color:#525252;">평균진척률 <strong style="color:#04443F;">${s.평균진척률}%</strong></span>
+        <span style="font-size:13px;color:#525252;">완료 <strong style="color:#04443F;">${s.완료}건 (${s.완료율}%)</strong></span>
       </div>
-      <div style="font-size:11px;color:#667085;white-space:nowrap;">${s.savedAt||''}</div>
+      <div style="font-size:11px;color:#737373;white-space:nowrap;">${s.savedAt||''}</div>
     </div>`;
   }).join('');
   el.innerHTML = `<div style="border:1px solid #eee;border-radius:6px;overflow:hidden;">${items}</div>`;
@@ -1472,18 +1472,18 @@ function renderTrendChart() {
   charts['chartTrend'] = new Chart(canvas, {
     type: 'line',
     data: { labels, datasets: [
-      { label:'평균 진척률(%)', data:avgs, yAxisID:'y', borderColor:'#F59E0B', backgroundColor:'rgba(245,158,11,.10)', fill:true, tension:.3, pointRadius:4, pointBackgroundColor:'#F59E0B', borderWidth:2 },
-      { label:'착수(건)', data:starts, yAxisID:'y2', borderColor:'#4F46E5', backgroundColor:'#4F46E5', fill:false, tension:.3, pointRadius:3, borderWidth:2 },
-      { label:'완료(건)', data:dones, yAxisID:'y2', borderColor:'#EC4899', backgroundColor:'#EC4899', fill:false, tension:.3, pointRadius:3, borderWidth:2 }
+      { label:'평균 진척률(%)', data:avgs, yAxisID:'y', borderColor:'#7BA428', backgroundColor:'rgba(166,206,89,.22)', fill:true, tension:.3, pointRadius:4, pointBackgroundColor:'#7BA428', borderWidth:2 },
+      { label:'착수(건)', data:starts, yAxisID:'y2', borderColor:'#00AAA6', backgroundColor:'#00AAA6', fill:false, tension:.3, pointRadius:3, borderWidth:2 },
+      { label:'완료(건)', data:dones, yAxisID:'y2', borderColor:'#04443F', backgroundColor:'#04443F', fill:false, tension:.3, pointRadius:3, borderWidth:2 }
     ]},
     options: {
       responsive:true, maintainAspectRatio:false,
       interaction:{mode:'index',intersect:false},
-      plugins:{legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'circle',font:{family:"'Pretendard',sans-serif",size:12},color:'#475467',padding:14}}},
+      plugins:{legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'circle',font:{family:"'Pretendard',sans-serif",size:12},color:'#525252',padding:14}}},
       scales:{
-        x:{grid:{display:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#98A2B3'}},
-        y:{min:0,max:100,position:'left',title:{display:true,text:'진척률(%)',font:{family:"'Pretendard',sans-serif",size:11},color:'#98A2B3'},grid:{color:'#F3F4F6',drawBorder:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#98A2B3'}},
-        y2:{position:'right',beginAtZero:true,suggestedMax:Math.max(5,...starts)+5,title:{display:true,text:'건수',font:{family:"'Pretendard',sans-serif",size:11},color:'#98A2B3'},grid:{display:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#98A2B3',precision:0}}
+        x:{grid:{display:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#737373'}},
+        y:{min:0,max:100,position:'left',title:{display:true,text:'진척률(%)',font:{family:"'Pretendard',sans-serif",size:11},color:'#737373'},grid:{color:'#F3F4F6',drawBorder:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#737373'}},
+        y2:{position:'right',beginAtZero:true,suggestedMax:Math.max(5,...starts)+5,title:{display:true,text:'건수',font:{family:"'Pretendard',sans-serif",size:11},color:'#737373'},grid:{display:false},ticks:{font:{family:"'Pretendard',sans-serif",size:11},color:'#737373',precision:0}}
       }
     }
   });
@@ -1555,8 +1555,8 @@ function goToTask(no) {
       rows.forEach(tr => {
         const noCell = tr.querySelector('.cell-no');
         if (noCell && parseInt(noCell.textContent) === no) {
-          tr.style.background = '#EEF0FE';
-          tr.style.outline = '2px solid #4F46E5';
+          tr.style.background = '#C0FCF8';
+          tr.style.outline = '2px solid #04443F';
           tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
           setTimeout(() => { tr.style.background=''; tr.style.outline=''; }, 3000);
         }

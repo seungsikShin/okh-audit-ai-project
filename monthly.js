@@ -12,6 +12,10 @@ const MONTHLY_DB = 'https://ai-audit-project-c66bb-default-rtdb.asia-southeast1.
 
 let monthlyStore = null;        // { '2026_08': {...확정본}, ... }
 const monthlySel = [];          // 이번 달 선택된 재편 과제 no (클릭 순서)
+let monthlyViewKey = null;      // 과거 제출본 조회 중이면 해당 월 키
+
+/* 장표 고정 주석 — 상단 표 하단에 항상 표기, 확정본에도 저장됨 */
+const MONTHLY_FOOTNOTE = '※ 정보계 연동: 아직 배정되지 않은 과제 2건 — 정보계 데이터 상시분석, 부정행위 상시모니터링';
 
 /* ── 날짜: 해당 월의 마지막 주 월요일 ── */
 function lastMondayOf(year, month /* 0-based */) {
@@ -59,6 +63,7 @@ function monthlyLoad() {
 }
 
 function monthlySave() {
+  if (monthlyViewKey) { monthlyViewKey = null; renderMonthly(); return; }   // 조회 중이면 이번 달로 복귀
   const now = new Date();
   const key = monthlyKeyOf(now);
   if (monthlyStore && monthlyStore[key]) {
@@ -80,6 +85,7 @@ function monthlySave() {
     savedAt: now.getTime(),
     savedAtText: now.toLocaleString('ko-KR'),
     top: monthlyKpis(),
+    footnote: MONTHLY_FOOTNOTE,
     items,
   };
   fetch(MONTHLY_DB + '/' + key + '.json', { method: 'PUT', body: JSON.stringify(payload) })
@@ -132,13 +138,22 @@ function renderMonthlyTop() {
       </tr>
     </thead>
     <tbody>
-      ${rows.map(r => `<tr class="${r.cur ? 'cur' : ''}${r.fixed ? '' : ' draft'}">
+      ${rows.map(r => `<tr class="${r.cur ? 'cur' : ''}${r.fixed ? '' : ' draft'}${monthlyViewKey === r.key ? ' sel' : ''} clickable"
+        onclick="monthlyViewMonth('${r.key}')" title="${r.cur ? '이번 달 장표' : r.label + ' 제출본 보기'}">
         <td class="mth">${escapeHtml(r.label)}</td>
         ${MONTHLY_COLS.map(c => `<td>${r.top ? (r.top[c] ?? '') : ''}</td>`).join('')}
         <td class="sub">${escapeHtml(r.sub || '')}</td>
       </tr>`).join('')}
     </tbody>
-  </table>`;
+  </table>
+  <p class="monthly-footnote">${escapeHtml(MONTHLY_FOOTNOTE)} · 월 행을 클릭하면 해당 달 제출본을 아래에서 볼 수 있습니다.</p>`;
+}
+
+/* 상단 표에서 월 클릭 → 해당 달 제출본 조회 (이번 달 클릭 시 편집으로 복귀) */
+function monthlyViewMonth(key) {
+  const curKey = monthlyKeyOf(new Date());
+  monthlyViewKey = (key === curKey || !monthlyStore || !monthlyStore[key]) ? null : key;
+  renderMonthly();
 }
 
 /* ── 렌더: 하단 과제 선택 + 장표 ── */
@@ -159,6 +174,18 @@ function renderMonthlyBottom() {
   const curKey = monthlyKeyOf(now);
   const curSaved = monthlyStore && monthlyStore[curKey];
   const tasks = (typeof v2data !== 'undefined' ? v2data : []).slice().sort((a, b) => a.no - b.no);
+
+  /* 과거 제출본 조회 모드 */
+  if (monthlyViewKey && monthlyStore && monthlyStore[monthlyViewKey]) {
+    const past = monthlyStore[monthlyViewKey];
+    picker.innerHTML = `<div class="monthly-fixed-note"><b>${escapeHtml(past.label || monthlyLabelOf(monthlyViewKey))} 제출본</b>을 조회하고 있습니다.<br>
+      확정 ${escapeHtml(past.savedAtText || '')} · 기준일 ${escapeHtml(past.기준일 || '')}<br>
+      상단 표에서 이번 달을 클릭하거나 오른쪽 버튼을 누르면 돌아갑니다.</div>`;
+    itemsEl.innerHTML = monthlyItemsTable(past.items || [], true);
+    const vbtn = document.getElementById('monthlySaveBtn');
+    if (vbtn) vbtn.textContent = '이번 달 장표로 돌아가기';
+    return;
+  }
 
   if (curSaved) {
     picker.innerHTML = `<div class="monthly-fixed-note">이 달 장표가 확정되어 선택이 잠겼습니다.<br>수정하려면 다시 저장해 덮어쓰면 됩니다.</div>`

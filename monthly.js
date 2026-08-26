@@ -13,6 +13,8 @@ const MONTHLY_DB = 'https://ai-audit-project-c66bb-default-rtdb.asia-southeast1.
 let monthlyStore = null;        // { '2026_08': {...확정본}, ... }
 const monthlySel = [];          // 이번 달 선택된 재편 과제 no (클릭 순서)
 let monthlyViewKey = null;      // 과거 제출본 조회 중이면 해당 월 키
+let monthlySynced = false;      // 이번 달 확정본을 편집 화면에 불러왔는지
+const monthlySavedText = {};    // no → {body, note} 확정본 문구 (편집 시작값)
 
 /* 장표 고정 주석 — 상단 표 하단에 항상 표기, 확정본에도 저장됨 */
 const MONTHLY_FOOTNOTE = '미 배정 과제 2건 : 정보계 데이터 상시분석, 부정행위 상시 모니터링';
@@ -92,6 +94,8 @@ function monthlySave() {
     .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(() => {
       monthlyStore[key] = payload;
+      items.forEach(i => { monthlySavedText[i.no] = { body: i.body, note: i.note }; });
+      monthlySynced = true;
       if (typeof showToast === 'function') showToast(monthlyLabelOf(key) + ' 장표 확정 저장 완료');
       renderMonthly();
     })
@@ -187,30 +191,30 @@ function renderMonthlyBottom() {
     return;
   }
 
-  if (curSaved) {
-    picker.innerHTML = `<div class="monthly-fixed-note">이 달 장표가 확정되어 선택이 잠겼습니다.<br>수정하려면 다시 저장해 덮어쓰면 됩니다.</div>`
-      + tasks.map(t => {
-        const inSaved = (curSaved.items || []).some(i => i.no === t.no);
-        return `<button class="monthly-pick${inSaved ? ' on' : ''}" onclick="monthlyUnlock(${t.no})">
-          <span class="no">${t.no}</span><span class="tt">${escapeHtml(t.title)}</span><span class="pv">${t.planned ? '대기' : (t.progress || 0) + '%'}</span>
-        </button>`;
-      }).join('');
-    itemsEl.innerHTML = monthlyItemsTable(curSaved.items || [], true);
-    const btn = document.getElementById('monthlySaveBtn');
-    if (btn) btn.textContent = '다시 확정 저장 (덮어쓰기)';
-    return;
+  /* 확정본이 있으면 그 내용을 편집 시작값으로 불러온다 (최초 1회) —
+     이후에는 자유롭게 고치고 다시 확정 저장하면 덮어쓴다 */
+  if (curSaved && !monthlySynced) {
+    monthlySel.length = 0;
+    (curSaved.items || []).forEach(i => {
+      monthlySel.push(i.no);
+      monthlySavedText[i.no] = { body: i.body || '', note: i.note || '' };
+    });
+    monthlySynced = true;
   }
 
   const btn = document.getElementById('monthlySaveBtn');
-  if (btn) btn.textContent = '이 달 장표 확정 저장';
-  picker.innerHTML = tasks.map(t => `
+  if (btn) btn.textContent = curSaved ? '다시 확정 저장 (덮어쓰기)' : '이 달 장표 확정 저장';
+  picker.innerHTML = (curSaved ? `<div class="monthly-fixed-note">이 달 장표가 확정되어 있습니다. 아래에서 과제를 바꾸거나 오른쪽 문구를 고친 뒤 <b>다시 확정 저장</b>하면 덮어씁니다.</div>` : '')
+    + tasks.map(t => `
     <button class="monthly-pick${monthlySel.includes(t.no) ? ' on' : ''}" onclick="monthlyTogglePick(${t.no})">
       <span class="no">${t.no}</span><span class="tt">${escapeHtml(t.title)}</span><span class="pv">${t.planned ? '대기' : (t.progress || 0) + '%'}</span>
     </button>`).join('');
 
   const items = monthlySel.map(no => {
     const t = tasks.find(x => x.no === no);
-    return t ? { no: t.no, body: monthlyDefaultBody(t), note: t.note || '' } : null;
+    if (!t) return null;
+    const saved = monthlySavedText[no];
+    return { no: t.no, body: saved ? saved.body : monthlyDefaultBody(t), note: saved ? saved.note : (t.note || '') };
   }).filter(Boolean);
   itemsEl.innerHTML = monthlyItemsTable(items, false);
 }
@@ -229,23 +233,23 @@ function monthlyItemsTable(items, fixed) {
   </table>${fixed ? '' : '<p class="monthly-hint" style="margin-top:8px;">셀을 클릭하면 문구를 직접 수정할 수 있습니다. 수정 후 확정 저장하면 그대로 고정됩니다.</p>'}`;
 }
 
+/* 화면에서 고친 문구를 보존 — 재렌더 전에 DOM에서 읽어둔다 */
+function monthlyCaptureEdits() {
+  document.querySelectorAll('#monthlyItems .monthly-item-row').forEach(tr => {
+    monthlySavedText[parseInt(tr.dataset.no, 10)] = {
+      body: tr.querySelector('.cell-body').innerText.trim(),
+      note: tr.querySelector('.cell-note').innerText.trim(),
+    };
+  });
+}
+
 function monthlyTogglePick(no) {
+  monthlyCaptureEdits();
   const i = monthlySel.indexOf(no);
   if (i > -1) monthlySel.splice(i, 1); else monthlySel.push(no);
   renderMonthlyBottom();
 }
 
-function monthlyUnlock(no) {
-  const curKey = monthlyKeyOf(new Date());
-  const curSaved = monthlyStore && monthlyStore[curKey];
-  if (!curSaved) return;
-  if (!confirm('확정본을 편집 상태로 되돌립니다. 계속할까요?\n(화면에서만 풀리며, 다시 확정 저장해야 서버에 반영됩니다)')) return;
-  monthlySel.length = 0;
-  (curSaved.items || []).forEach(i => monthlySel.push(i.no));
-  if (no && !monthlySel.includes(no)) monthlySel.push(no);
-  delete monthlyStore[curKey];        // 화면상 편집 모드 전환 (서버본은 저장 시 덮어씀)
-  renderMonthly();
-}
 
 /* ── 엔트리 ── */
 function renderMonthly() {

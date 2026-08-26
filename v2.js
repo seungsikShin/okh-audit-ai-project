@@ -558,9 +558,12 @@ function renderV2Tasks() {
   if (!openRows.length) {
     body.innerHTML = `<div class="v2-flow-empty">
       <p class="t">좌측에서 에이전트를 펼치고 과제를 선택하세요</p>
-      <p class="d">선택한 과제 카드가 이 영역에 쌓이며, 카드에서 바로 수정할 수 있습니다.</p>
+      <p class="d">선택한 과제 카드가 여기에 열리며, 카드에서 바로 수정할 수 있습니다.</p>
     </div>`;
   } else {
+    // 카드를 좌측 행과 같은 높이에 띄우므로 클릭순이 아니라 위→아래 순으로 그린다.
+    // 그래야 아래에서 겹침을 밀어내는 계산이 한 방향으로 끝난다.
+    openRows.sort((a, b) => v2FlowRowTop(a.no) - v2FlowRowTop(b.no));
     body.innerHTML = openRows.map(t => v2TaskCard(t, true)).join('');
   }
   v2FlowWiresAnimate();
@@ -720,10 +723,20 @@ function v2FlowToggleTask(no) {
   if (i > -1) v2FlowOpen.splice(i, 1);
   else v2FlowOpen.push(no);
   renderV2Tasks();
+  // 좌측 레일이 고정이라 스크롤 주체는 카드 쪽이다. 새로 연 카드가 화면 밖이면
+  // 'nearest' 로 최소한만 끌어온다 — 이미 보이면 화면은 그대로 있는다.
   if (i === -1) requestAnimationFrame(() => {
     const el = document.querySelector(`.v2-card[data-dno="${no}"]`);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   });
+}
+function v2FlowOpenAll() {
+  // 좌측에 보이는(필터를 통과한) 과제를 목록 순서대로 전부 연다
+  V2_AGENTS.forEach(a => v2FlowAgentsOpen.add(a.no));
+  const nos = [...document.querySelectorAll('.v2-frow[data-tno]')].map(el => +el.dataset.tno);
+  v2FlowOpen.length = 0;
+  v2FlowOpen.push(...nos);
+  renderV2Tasks();
 }
 function v2FlowCloseAll() {
   v2FlowOpen.length = 0;
@@ -749,16 +762,17 @@ function renderV2FlowAgents(passNos) {
       const changed = tasks.some(t => chgMap.has(t.no));
       const isOpen = v2FlowAgentsOpen.has(a.no);
       const dim = !vis.length;
+      // 한 줄 압축 — 캐럿·코드·이름·건수·진척률을 한 행에 두고 진척바는 버튼 밑줄로 뺀다.
+      // 좌측 레일이 한 화면에 들어가야 스크롤이 페이지 하나로 끝난다.
       html += `<div class="v2-fgroup">
-      <button class="v2-fagent${isOpen ? ' open' : ''}${dim ? ' dim' : ''}${changed ? ' chg' : ''}${isPlan ? ' is-plan' : ''}" data-ano="${a.no}" onclick="v2FlowToggleAgent(${a.no})">
-        <div class="row1">
-          <span class="caret">▶</span>
-          <span class="code">${a.code}</span>
-          ${changed ? '<span class="chg-dot" title="이번 주기 변경"></span>' : ''}
-          <span class="cnt">과제 ${tasks.length}</span>
-        </div>
-        <div class="name">${escapeHtml(a.name)}</div>
-        <div class="pgline"><span class="pg"><i style="width:${avg}%"></i></span><span class="pgv">${isPlan ? '대기' : avg + '%'}</span></div>
+      <button class="v2-fagent${isOpen ? ' open' : ''}${dim ? ' dim' : ''}${changed ? ' chg' : ''}${isPlan ? ' is-plan' : ''}" data-ano="${a.no}" onclick="v2FlowToggleAgent(${a.no})" title="${escapeHtml(a.code + ' ' + a.name)} · 과제 ${tasks.length}건">
+        <span class="caret">▶</span>
+        <span class="code">${a.code}</span>
+        <span class="name">${escapeHtml(a.name)}</span>
+        ${changed ? '<span class="chg-dot" title="이번 주기 변경"></span>' : ''}
+        <span class="cnt">${tasks.length}</span>
+        <span class="pgv">${isPlan ? '대기' : avg + '%'}</span>
+        <i class="pgbar" style="--w:${avg}%"></i>
         <div class="plats">${v2PlatBadges(a.code)}</div>
       </button>
       <div class="v2-fdrawer${isOpen ? ' open' : ''}">
@@ -773,6 +787,16 @@ function renderV2FlowAgents(passNos) {
     }
   }
   wrap.innerHTML = html;
+}
+
+/* 열린 카드는 좌측 목록 순서(위→아래)로 쌓는다.
+   묶음 자체는 CSS sticky 로 스크롤을 따라다닌다(.v2-flow-stack-wrap). */
+function v2FlowRowTop(no) {
+  const r = document.querySelector(`.v2-frow[data-tno="${no}"]`);
+  if (!r) return Number.MAX_SAFE_INTEGER;          // 드로어가 접혀 행이 없는 경우
+  const dr = r.closest('.v2-fdrawer');
+  if (dr && !dr.classList.contains('open')) return Number.MAX_SAFE_INTEGER;
+  return r.getBoundingClientRect().top;
 }
 
 /* 연결선 — 열린 과제 행 → 해당 카드 (얇은 틸 곡선) */
@@ -791,6 +815,9 @@ function v2FlowWires() {
     const dr = row.closest('.v2-fdrawer');
     if (dr && !dr.classList.contains('open')) continue;
     const f = row.getBoundingClientRect(), c = card.getBoundingClientRect();
+    // 행이나 카드가 화면 밖이면 선을 그리지 않는다 — 엉뚱한 데로 뻗는 선만 남으므로
+    const vh = window.innerHeight;
+    if (f.bottom < 0 || f.top > vh || c.bottom < 0 || c.top > vh) continue;
     const x1 = f.right - sr.left, y1 = f.top - sr.top + f.height / 2;
     const x2 = c.left - sr.left, y2 = c.top - sr.top + 26;
     const mx = (x1 + x2) / 2;
@@ -811,7 +838,12 @@ function v2FlowWiresAnimate() {
   v2WireRaf = requestAnimationFrame(loop);
 }
 window.addEventListener('resize', () => v2FlowWires());
-window.addEventListener('scroll', () => v2FlowWires(), { passive: true });
+/* 스크롤 추종.
+   - 캡처 단계로 듣는다: scroll 이벤트는 버블링되지 않아서, 카드 영역 자체 스크롤은
+     window 리스너로 잡히지 않는다.
+   - 한 번 그리고 끝내지 않고 rAF 루프를 돌린다: sticky 는 합성 스레드에서 움직여
+     스크롤 핸들러가 읽는 좌표가 한 프레임 늦기 때문. 멈추고 0.5초 뒤 루프도 멈춘다. */
+document.addEventListener('scroll', () => v2FlowWiresAnimate(), { capture: true, passive: true });
 
 /* ══ AI 에이전트 16개 ════════════════════════════════════════ */
 function renderV2Agents() {

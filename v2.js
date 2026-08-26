@@ -554,18 +554,22 @@ function renderV2Tasks() {
   const passNos = new Set(rows.map(t => t.no));
   renderV2FlowAgents(passNos);
 
-  const openRows = v2FlowOpen.map(no => v2Task(no)).filter(Boolean);
+  // 접힌 에이전트의 카드는 그리지 않는다 — 행 옆에 붙일 자리가 없다.
+  const openRows = v2FlowOpen.map(no => v2Task(no))
+    .filter(t => t && v2FlowAgentsOpen.has(t.agentNo));
   if (!openRows.length) {
     body.innerHTML = `<div class="v2-flow-empty">
       <p class="t">좌측에서 에이전트를 펼치고 과제를 선택하세요</p>
-      <p class="d">선택한 과제 카드가 여기에 열리며, 카드에서 바로 수정할 수 있습니다.</p>
+      <p class="d">선택한 과제 카드가 과제 옆 같은 높이에 열리며, 카드에서 바로 수정할 수 있습니다.</p>
     </div>`;
+    body.style.minHeight = '';
   } else {
     // 카드를 좌측 행과 같은 높이에 띄우므로 클릭순이 아니라 위→아래 순으로 그린다.
-    // 그래야 아래에서 겹침을 밀어내는 계산이 한 방향으로 끝난다.
     openRows.sort((a, b) => v2FlowRowTop(a.no) - v2FlowRowTop(b.no));
     body.innerHTML = openRows.map(t => v2TaskCard(t, true)).join('');
   }
+  v2FlowLayout();
+  setTimeout(v2FlowLayout, 470);   // 드로어 전환(0.4s) 종료 후 실제 행 위치로 재정렬
   v2FlowWiresAnimate();
 
   const scored = rows.filter(t => !t.planned);
@@ -762,18 +766,19 @@ function renderV2FlowAgents(passNos) {
       const changed = tasks.some(t => chgMap.has(t.no));
       const isOpen = v2FlowAgentsOpen.has(a.no);
       const dim = !vis.length;
-      // 한 줄 압축 — 캐럿·코드·이름·건수·진척률을 한 행에 두고 진척바는 버튼 밑줄로 뺀다.
-      // 좌측 레일이 한 화면에 들어가야 스크롤이 페이지 하나로 끝난다.
+      const active = tasks.filter(t => t.status === '착수').length;
+      const people = [...new Set(tasks.flatMap(t => (t.person || '').split(',').map(s => s.trim()).filter(Boolean)))];
+      // 확대 카드 — 이름 크게, 운영 플랫폼 배지 상시 표시, 진척바·담당·건수까지 한 카드에.
       html += `<div class="v2-fgroup">
-      <button class="v2-fagent${isOpen ? ' open' : ''}${dim ? ' dim' : ''}${changed ? ' chg' : ''}${isPlan ? ' is-plan' : ''}" data-ano="${a.no}" onclick="v2FlowToggleAgent(${a.no})" title="${escapeHtml(a.code + ' ' + a.name)} · 과제 ${tasks.length}건">
-        <span class="caret">▶</span>
-        <span class="code">${a.code}</span>
-        <span class="name">${escapeHtml(a.name)}</span>
-        ${changed ? '<span class="chg-dot" title="이번 주기 변경"></span>' : ''}
-        <span class="cnt">${tasks.length}</span>
-        <span class="pgv">${isPlan ? '대기' : avg + '%'}</span>
-        <i class="pgbar" style="--w:${avg}%"></i>
-        <div class="plats">${v2PlatBadges(a.code)}</div>
+      <button class="v2-fagent${isOpen ? ' open' : ''}${dim ? ' dim' : ''}${changed ? ' chg' : ''}${isPlan ? ' is-plan' : ''}" data-ano="${a.no}" onclick="v2FlowToggleAgent(${a.no})">
+        <span class="l1">
+          <span class="caret">▶</span>
+          <span class="code">${a.code}</span>
+          <span class="name">${escapeHtml(a.name)}</span>
+          ${changed ? '<span class="chg-dot" title="이번 주기 변경"></span>' : ''}
+        </span>
+        <span class="pgline"><span class="pg"><i style="width:${avg}%"></i></span><span class="pgv">${isPlan ? '대기' : avg + '%'}</span></span>
+        <span class="l2">${v2PlatBadges(a.code)}<span class="sub">과제 ${tasks.length} · 착수 ${active} · ${escapeHtml(people.join('·') || '미지정')}</span></span>
       </button>
       <div class="v2-fdrawer${isOpen ? ' open' : ''}">
         ${vis.map(t => `
@@ -789,8 +794,31 @@ function renderV2FlowAgents(passNos) {
   wrap.innerHTML = html;
 }
 
-/* 열린 카드는 좌측 목록 순서(위→아래)로 쌓는다.
-   묶음 자체는 CSS sticky 로 스크롤을 따라다닌다(.v2-flow-stack-wrap). */
+/* ── 방사형 정렬: 카드를 클릭한 과제 행과 같은 높이에 배치 ──
+   구글독스 주석처럼, 원하는 높이(행 top)에 놓되 위 카드와 겹치면
+   아래로 캐스케이드해 민다. 좌우 모두 페이지 스크롤 하나로 움직인다. */
+function v2FlowLayout() {
+  const stage = document.getElementById('v2Flow');
+  const body = document.getElementById('v2TaskBody');
+  if (!stage || !body) return;
+  const cards = [...body.querySelectorAll('.v2-card[data-dno]')];
+  if (!cards.length) { v2FlowWires(); return; }
+  const stageTop = stage.getBoundingClientRect().top;
+  const entries = cards.map(c => {
+    const rt = v2FlowRowTop(+c.dataset.dno);
+    return { c, want: rt === Number.MAX_SAFE_INTEGER ? 0 : rt - stageTop };
+  }).sort((x, y) => x.want - y.want);
+  let cursor = 0;
+  entries.forEach(e => {
+    const top = Math.max(e.want, cursor);
+    e.c.style.top = top + 'px';
+    cursor = top + e.c.offsetHeight + 16;
+  });
+  body.style.minHeight = cursor + 'px';
+  v2FlowWires();
+}
+window.addEventListener('resize', () => v2FlowLayout());
+
 function v2FlowRowTop(no) {
   const r = document.querySelector(`.v2-frow[data-tno="${no}"]`);
   if (!r) return Number.MAX_SAFE_INTEGER;          // 드로어가 접혀 행이 없는 경우

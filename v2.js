@@ -550,15 +550,20 @@ function renderV2Tasks() {
 
   renderV2CycleBar(cyc);
 
-  if (!rows.length) {
-    body.innerHTML = `<div class="v2-empty">
-      <p class="t">${cyc ? `${cyc.label} 주기에 변동된 과제가 없습니다.` : '조건에 맞는 과제가 없습니다.'}</p>
-      <p class="d">${cyc ? '과제를 수정하면 이 주기의 변동으로 잡힙니다.' : '필터를 넓히거나 초기화하면 25건 전체를 볼 수 있습니다.'}</p>
-      <button class="btn btn-outline" onclick="resetV2Filter()">필터 초기화</button>
+  /* ── 2열 플로우 뷰: 좌측 에이전트 트리 + 우측 열린 카드 스택 ── */
+  const passNos = new Set(rows.map(t => t.no));
+  renderV2FlowAgents(passNos);
+
+  const openRows = v2FlowOpen.map(no => v2Task(no)).filter(Boolean);
+  if (!openRows.length) {
+    body.innerHTML = `<div class="v2-flow-empty">
+      <p class="t">좌측에서 에이전트를 펼치고 과제를 선택하세요</p>
+      <p class="d">선택한 과제 카드가 이 영역에 쌓이며, 카드에서 바로 수정할 수 있습니다.</p>
     </div>`;
   } else {
-    body.innerHTML = rows.map(t => v2TaskCard(t)).join('');
+    body.innerHTML = openRows.map(t => v2TaskCard(t, true)).join('');
   }
+  v2FlowWiresAnimate();
 
   const scored = rows.filter(t => !t.planned);
   const stat = document.getElementById('v2TaskStats');
@@ -624,7 +629,7 @@ function renderV2CycleBar(cyc) {
     ${sm.changed === 0 ? '<span class="v2-cyc-note">아직 이 주기에 기록된 변동이 없습니다.</span>' : ''}`;
 }
 
-function v2TaskCard(t) {
+function v2TaskCard(t, closable) {
   const ag = v2Agent(t.agentNo);
   const pct = t.progress || 0;
   const origins = t.origins.map(o => {
@@ -632,7 +637,7 @@ function v2TaskCard(t) {
     return `<button class="v2-origin" onclick="goToTask(${o})" title="${escapeHtml(l ? l.task.replace(/\s+/g, ' ').slice(0, 90) : '')}">#${o}</button>`;
   }).join('');
 
-  return `<article class="v2-card${t.planned ? ' planned' : ''}">
+  return `<article class="v2-card${t.planned ? ' planned' : ''}" data-dno="${t.no}">
     <header class="v2-card-head">
       <div class="v2-card-id">
         <span class="v2-no">${t.no}</span>
@@ -642,6 +647,7 @@ function v2TaskCard(t) {
       <div class="v2-card-actions">
         <span class="v2-status ${t.status === '착수' ? 'on' : 'off'}">${t.status || '미착수'}</span>
         <button class="btn btn-outline btn-sm" onclick="openV2Edit(${t.no})">수정</button>
+        ${closable ? `<button class="btn btn-outline btn-sm v2-flow-x" onclick="v2FlowToggleTask(${t.no})" title="카드 닫기">×</button>` : ''}
       </div>
     </header>
 
@@ -691,6 +697,121 @@ function populateV2Filters() {
     [...set].sort().forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = p; pe.appendChild(o); });
   }
 }
+
+/* ══ AI 과제 수행 — 2열 플로우 뷰 ═══════════════════════════
+   좌측: 에이전트 5밴드 트리(동시 펼침) · 우측: 선택 과제 카드 스택
+   기존 v2TaskCard·openV2Edit·필터·주기 로직을 그대로 재사용한다. */
+const V2_FLOW_BANDS = [
+  { title: '정보 수집·분석 지원', codes: ['A-01', 'A-03', 'B-06'] },
+  { title: '감사 수행', codes: ['A-02', 'A-04', 'A-06', 'A-07'] },
+  { title: '상시 점검', codes: ['A-08', 'A-09', 'A-10'] },
+  { title: '거버넌스·대외 대응', codes: ['A-11', 'A-12', 'B-01', 'B-02', 'B-03'] },
+  { title: '향후 과제', codes: ['C-01'] },
+];
+const v2FlowAgentsOpen = new Set();   // 펼친 에이전트 no (동시 다수)
+const v2FlowOpen = [];                // 열린 과제 카드 no (클릭 순서)
+
+function v2FlowToggleAgent(no) {
+  v2FlowAgentsOpen.has(no) ? v2FlowAgentsOpen.delete(no) : v2FlowAgentsOpen.add(no);
+  renderV2Tasks();
+}
+function v2FlowToggleTask(no) {
+  const i = v2FlowOpen.indexOf(no);
+  if (i > -1) v2FlowOpen.splice(i, 1);
+  else v2FlowOpen.push(no);
+  renderV2Tasks();
+  if (i === -1) requestAnimationFrame(() => {
+    const el = document.querySelector(`.v2-card[data-dno="${no}"]`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+}
+function v2FlowCloseAll() {
+  v2FlowOpen.length = 0;
+  v2FlowAgentsOpen.clear();
+  renderV2Tasks();
+}
+
+function renderV2FlowAgents(passNos) {
+  const wrap = document.getElementById('v2FlowAgents');
+  if (!wrap) return;
+  const chgMap = v2CycleChanges(currentCycle());   // 하이라이트는 항상 이번 주기 기준
+  let html = '';
+  for (const band of V2_FLOW_BANDS) {
+    const list = band.codes.map(c => V2_AGENTS.find(a => a.code === c)).filter(Boolean);
+    if (!list.length) continue;
+    html += `<div class="v2-fband"><span>${band.title}</span><span class="bc">${list.length}</span></div>`;
+    for (const a of list) {
+      const tasks = v2data.filter(t => t.agentNo === a.no);
+      const vis = tasks.filter(t => passNos.has(t.no));
+      const scored = tasks.filter(t => !t.planned);
+      const avg = scored.length ? Math.round(scored.reduce((s, t) => s + (t.progress || 0), 0) / scored.length) : 0;
+      const isPlan = tasks.every(t => t.planned);
+      const changed = tasks.some(t => chgMap.has(t.no));
+      const isOpen = v2FlowAgentsOpen.has(a.no);
+      const dim = !vis.length;
+      html += `<div class="v2-fgroup">
+      <button class="v2-fagent${isOpen ? ' open' : ''}${dim ? ' dim' : ''}${changed ? ' chg' : ''}${isPlan ? ' is-plan' : ''}" data-ano="${a.no}" onclick="v2FlowToggleAgent(${a.no})">
+        <div class="row1">
+          <span class="caret">▶</span>
+          <span class="code">${a.code}</span>
+          ${changed ? '<span class="chg-dot" title="이번 주기 변경"></span>' : ''}
+          <span class="cnt">과제 ${tasks.length}</span>
+        </div>
+        <div class="name">${escapeHtml(a.name)}</div>
+        <div class="pgline"><span class="pg"><i style="width:${avg}%"></i></span><span class="pgv">${isPlan ? '대기' : avg + '%'}</span></div>
+        <div class="plats">${v2PlatBadges(a.code)}</div>
+      </button>
+      <div class="v2-fdrawer${isOpen ? ' open' : ''}">
+        ${vis.map(t => `
+        <button class="v2-frow${v2FlowOpen.includes(t.no) ? ' on' : ''}${chgMap.has(t.no) ? ' chg' : ''}" data-tno="${t.no}" onclick="v2FlowToggleTask(${t.no})">
+          <span class="tno">${t.no}</span>
+          <span class="tt">${escapeHtml(t.title)}</span>
+          <span class="pv">${t.planned ? '대기' : (t.progress || 0) + '%'}</span>
+        </button>`).join('') || '<div class="v2-frow none">필터 조건에 맞는 과제 없음</div>'}
+      </div>
+      </div>`;
+    }
+  }
+  wrap.innerHTML = html;
+}
+
+/* 연결선 — 열린 과제 행 → 해당 카드 (얇은 틸 곡선) */
+function v2FlowWires() {
+  const svg = document.getElementById('v2FlowWires');
+  const stage = document.getElementById('v2Flow');
+  if (!svg || !stage) return;
+  const sr = stage.getBoundingClientRect();
+  svg.setAttribute('width', sr.width); svg.setAttribute('height', sr.height);
+  svg.setAttribute('viewBox', `0 0 ${sr.width} ${sr.height}`);
+  let out = '';
+  for (const no of v2FlowOpen) {
+    const row = stage.querySelector(`.v2-frow[data-tno="${no}"]`);
+    const card = stage.querySelector(`.v2-card[data-dno="${no}"]`);
+    if (!row || !card) continue;
+    const dr = row.closest('.v2-fdrawer');
+    if (dr && !dr.classList.contains('open')) continue;
+    const f = row.getBoundingClientRect(), c = card.getBoundingClientRect();
+    const x1 = f.right - sr.left, y1 = f.top - sr.top + f.height / 2;
+    const x2 = c.left - sr.left, y2 = c.top - sr.top + 26;
+    const mx = (x1 + x2) / 2;
+    out += `<circle cx="${x1}" cy="${y1}" r="2.5"/><path d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}"/><circle cx="${x2}" cy="${y2}" r="2.5"/>`;
+  }
+  svg.innerHTML = out;
+}
+/* 드로어 전환(0.4s) 동안 선 위치를 따라가도록 잠깐 연속 갱신 */
+let v2WireRaf = null, v2WireUntil = 0;
+function v2FlowWiresAnimate() {
+  v2WireUntil = performance.now() + 500;
+  if (v2WireRaf) return;
+  const loop = () => {
+    v2FlowWires();
+    if (performance.now() < v2WireUntil) { v2WireRaf = requestAnimationFrame(loop); }
+    else v2WireRaf = null;
+  };
+  v2WireRaf = requestAnimationFrame(loop);
+}
+window.addEventListener('resize', () => v2FlowWires());
+window.addEventListener('scroll', () => v2FlowWires(), { passive: true });
 
 /* ══ AI 에이전트 16개 ════════════════════════════════════════ */
 function renderV2Agents() {

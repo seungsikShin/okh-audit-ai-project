@@ -25,8 +25,8 @@
       <div class="nav-label">재편 <span class="nav-label-tag">16 에이전트 · 25 과제</span></div>
       <div class="nav">
         <div class="tab active" data-tab="v2-dashboard" onclick="switchTab('v2-dashboard',this)"><span class="ico" aria-hidden="true">◈</span><span>재편 대시보드</span></div>
-        <div class="tab" data-tab="v2-tasks" onclick="switchTab('v2-tasks',this)"><span class="ico" aria-hidden="true">▤</span><span>AI 과제 25건</span></div>
-        <div class="tab" data-tab="v2-agents" onclick="switchTab('v2-agents',this)"><span class="ico" aria-hidden="true">◉</span><span>AI 에이전트 16개</span></div>
+        <div class="tab tab-hot" data-tab="v2-tasks" onclick="switchTab('v2-tasks',this)"><span class="ico" aria-hidden="true">▤</span><span>AI 과제 수행</span></div>
+        <div class="tab" data-tab="v2-agents" onclick="switchTab('v2-agents',this)"><span class="ico" aria-hidden="true">◉</span><span>에이전트 요약</span></div>
         <div class="tab" data-tab="v2-map" onclick="switchTab('v2-map',this)"><span class="ico" aria-hidden="true">⇄</span><span>전환 매핑 80 → 25</span></div>
         <div class="tab" data-tab="v2-excluded" onclick="switchTab('v2-excluded',this)"><span class="ico" aria-hidden="true">⊘</span><span>제외 과제 12건</span></div>
       </div>
@@ -145,10 +145,17 @@
     <label for="v2Search">검색</label>
     <input type="text" id="v2Search" placeholder="과제명·구현·산출물 검색" style="width:220px" oninput="renderV2Tasks()">
     <button class="btn btn-outline" onclick="resetV2Filter()">초기화</button>
+    <button class="btn btn-outline" onclick="v2FlowCloseAll()">모두 닫기</button>
   </div>
   <div id="v2CycleBar" class="v2-cycle-bar"></div>
   <div class="stats-bar" id="v2TaskStats"></div>
-  <div class="v2-task-grid" id="v2TaskBody"></div>
+  <div class="v2-flow" id="v2Flow">
+    <svg id="v2FlowWires" aria-hidden="true"></svg>
+    <div class="v2-flow-agents" id="v2FlowAgents"></div>
+    <div class="v2-flow-stack-wrap">
+      <div class="v2-flow-stack" id="v2TaskBody"></div>
+    </div>
+  </div>
 </div>
 
 <!-- ══════════ 재편 ③ AI 에이전트 16개 ═══════════════════════ -->

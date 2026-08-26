@@ -922,3 +922,45 @@ body.snapshot-mode #weeklyNav .tab.active{background:#FEF3C7;color:#92400E;}
   .v2-fdrawer{transition:none;}
   .v2-flow-stack .v2-card{animation:none;}
 }
+
+/* ══ 월간 보고 장표 ═══════════════════════════════════════ */
+.monthly-grid{display:grid;grid-template-columns:380px 1fr;gap:16px;margin-top:16px;align-items:start;}
+@media(max-width:1100px){.monthly-grid{grid-template-columns:1fr;}}
+.monthly-hint{font-size:12px;color:var(--text-3);margin:2px 0 10px;}
+
+/* 상단 표 — 제출 장표와 같은 골격 */
+.monthly-table{width:100%;border-collapse:collapse;font-size:12.5px;text-align:center;min-width:860px;}
+.monthly-table th,.monthly-table td{border:1px solid var(--border-strong);padding:7px 6px;}
+.monthly-table thead th{background:var(--primary-soft);color:var(--primary-hover);font-weight:700;line-height:1.35;}
+.monthly-table thead th.grp{background:var(--primary);color:#fff;}
+.monthly-table thead th.mth{background:var(--primary);color:#fff;}
+.monthly-table td{font-family:var(--num);font-weight:600;color:var(--text);}
+.monthly-table td.mth{font-family:inherit;font-weight:700;white-space:nowrap;}
+.monthly-table td.sub{font-family:inherit;font-weight:500;font-size:11px;color:var(--text-3);white-space:nowrap;}
+.monthly-table tr.cur td{background:var(--accent-soft);}
+.monthly-table tr.cur.draft td{background:var(--warn-soft);}
+.monthly-table tr.cur.draft td.sub{color:var(--warn);font-weight:700;}
+
+/* 과제 선택 리스트 */
+.monthly-picker{display:flex;flex-direction:column;gap:6px;max-height:560px;overflow-y:auto;padding-right:4px;}
+.monthly-pick{display:flex;align-items:center;gap:8px;width:100%;text-align:left;cursor:pointer;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:9px 11px;font-family:inherit;transition:border-color .15s,background .15s;}
+.monthly-pick:hover{border-color:var(--border-strong);background:var(--surface-hover);}
+.monthly-pick.on{background:var(--accent-soft);border-color:var(--accent);}
+.monthly-pick .no{font-size:10.5px;font-weight:800;color:var(--text-3);flex-shrink:0;font-family:var(--num);}
+.monthly-pick .tt{font-size:12.5px;font-weight:600;line-height:1.35;flex:1;min-width:0;color:var(--text);}
+.monthly-pick .pv{font-size:11px;font-weight:700;color:var(--text-2);flex-shrink:0;font-family:var(--num);}
+.monthly-fixed-note{font-size:12px;color:var(--warn);background:var(--warn-soft);
+  border:1px solid var(--warn-border);border-radius:var(--radius-sm);padding:9px 12px;margin-bottom:8px;line-height:1.5;}
+
+/* 하단 장표 표 */
+.monthly-items-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+.monthly-items-table th,.monthly-items-table td{border:1px solid var(--border-strong);padding:9px 11px;vertical-align:top;text-align:left;}
+.monthly-items-table thead th{background:var(--primary);color:#fff;font-weight:700;text-align:center;}
+.monthly-items-table td.c{text-align:center;font-weight:700;font-family:var(--num);}
+.monthly-items-table td[contenteditable]{cursor:text;}
+.monthly-items-table td[contenteditable]:focus{outline:2px solid var(--accent);outline-offset:-2px;background:var(--accent-soft);}
+.monthly-items-table .cell-body{line-height:1.6;white-space:pre-line;}
+.monthly-empty{border:1.5px dashed var(--border-strong);border-radius:var(--radius-sm);
+  padding:36px 16px;text-align:center;color:var(--text-3);font-size:12.5px;background:var(--surface-2);}

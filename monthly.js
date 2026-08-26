@@ -15,7 +15,7 @@ const monthlySel = [];          // 이번 달 선택된 재편 과제 no (클릭
 let monthlyViewKey = null;      // 과거 제출본 조회 중이면 해당 월 키
 
 /* 장표 고정 주석 — 상단 표 하단에 항상 표기, 확정본에도 저장됨 */
-const MONTHLY_FOOTNOTE = '※ 정보계 연동: 아직 배정되지 않은 과제 2건 — 정보계 데이터 상시분석, 부정행위 상시모니터링';
+const MONTHLY_FOOTNOTE = '미 배정 과제 2건 : 정보계 데이터 상시분석, 부정행위 상시 모니터링';
 
 /* ── 날짜: 해당 월의 마지막 주 월요일 ── */
 function lastMondayOf(year, month /* 0-based */) {
@@ -146,7 +146,7 @@ function renderMonthlyTop() {
       </tr>`).join('')}
     </tbody>
   </table>
-  <p class="monthly-footnote">${escapeHtml(MONTHLY_FOOTNOTE)} · 월 행을 클릭하면 해당 달 제출본을 아래에서 볼 수 있습니다.</p>`;
+  <p class="monthly-footnote">${escapeHtml(MONTHLY_FOOTNOTE)}</p>`;
 }
 
 /* 상단 표에서 월 클릭 → 해당 달 제출본 조회 (이번 달 클릭 시 편집으로 복귀) */

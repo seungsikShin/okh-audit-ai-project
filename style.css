@@ -929,14 +929,14 @@ body.snapshot-mode #weeklyNav .tab.active{background:#FEF3C7;color:#92400E;}
 .monthly-hint{font-size:12px;color:var(--text-3);margin:2px 0 10px;}
 
 /* 상단 표 — 제출 장표와 같은 골격 */
-.monthly-table{width:100%;border-collapse:collapse;font-size:12.5px;text-align:center;min-width:860px;}
-.monthly-table th,.monthly-table td{border:1px solid var(--border-strong);padding:7px 6px;}
+.monthly-table{width:100%;max-width:1100px;margin:0 auto;border-collapse:collapse;font-size:12px;text-align:center;table-layout:auto;}
+.monthly-table th,.monthly-table td{border:1px solid var(--border-strong);padding:6px 4px;}
 .monthly-table thead th{background:var(--primary-soft);color:var(--primary-hover);font-weight:700;line-height:1.35;}
 .monthly-table thead th.grp{background:var(--primary);color:#fff;}
 .monthly-table thead th.mth{background:var(--primary);color:#fff;}
 .monthly-table td{font-family:var(--num);font-weight:600;color:var(--text);}
 .monthly-table td.mth{font-family:inherit;font-weight:700;white-space:nowrap;}
-.monthly-table td.sub{font-family:inherit;font-weight:500;font-size:11px;color:var(--text-3);white-space:nowrap;}
+.monthly-table td.sub{font-family:inherit;font-weight:500;font-size:10.5px;color:var(--text-3);line-height:1.35;}
 .monthly-table tr.cur td{background:var(--accent-soft);}
 .monthly-table tr.cur.draft td{background:var(--warn-soft);}
 .monthly-table tr.cur.draft td.sub{color:var(--warn);font-weight:700;}

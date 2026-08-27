@@ -134,7 +134,6 @@ function renderV2Dashboard() {
   set('v2k-absorbed-sub', '원과제 80건 중');
 
   renderV2CycleDeltas();
-  renderV2Rollup();
   renderV2QuarterStatus();
   renderV2Trend();
   renderV2AgentPct();
@@ -142,7 +141,6 @@ function renderV2Dashboard() {
   renderV2Ledger();
 }
 
-/** 안분 효과 요약 — 원과제 80건의 진척률이 어떻게 움직였는가 */
 /** 대시보드 KPI — 주기 시작 대비 증감.
  *  기준선은 변경 로그를 되감아 만들므로 별도 스냅샷이 필요 없다. */
 function renderV2CycleDeltas() {
@@ -163,39 +161,6 @@ function renderV2CycleDeltas() {
     el.className = 'kpi-delta ' + (diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat');
     el.textContent = `${diff > 0 ? '▲' : diff < 0 ? '▼' : '—'} ${Math.abs(diff)}${unit} 이번 주기 (${range.label})`;
   });
-}
-
-function renderV2Rollup() {
-  const wrap = document.getElementById('v2RollupWrap');
-  if (!wrap) return;
-  const rows = window._dashData || [];
-  if (!rows.length) { wrap.innerHTML = '<div class="v2-empty">원과제 데이터를 불러오는 중입니다.</div>'; return; }
-  const r = window._v2LegacyRollup(rows);
-  const delta = r.totalAvg - r.beforeAvg;
-  const sign = delta > 0 ? '+' : '';
-
-  wrap.innerHTML = `
-    <div class="v2-rollup">
-      <div class="v2-rollup-main">
-        <div class="v2-rollup-figure">
-          <span class="from">${r.beforeAvg}%</span>
-          <span class="arrow" aria-hidden="true">→</span>
-          <span class="to">${r.totalAvg}%</span>
-          <span class="delta ${delta >= 0 ? 'up' : 'down'}">${sign}${delta}%p</span>
-        </div>
-        <p class="v2-rollup-copy">
-          원과제 80건의 자체 진척률 평균은 <b>${r.beforeAvg}%</b>였습니다.
-          이 중 <b>${r.linkedCount}건</b>이 AI 과제 25건에 흡수되면서
-          <b>자체 값과 상위 과제 진척률 중 높은 쪽</b>을 안분받아, 전체 평균이 <b>${r.totalAvg}%</b>가 됩니다.
-          이미 자체 진척이 더 앞선 과제는 그 값을 그대로 지키므로 수치가 내려가지 않습니다.
-        </p>
-      </div>
-      <div class="v2-rollup-side">
-        <div class="v2-rollup-stat"><span class="k">안분 반영 (${r.linkedCount}건)</span><span class="v">${r.linkedAvg}%</span></div>
-        <div class="v2-rollup-stat"><span class="k">자체 유지 (${r.ownCount}건)</span><span class="v">${r.ownCount ? Math.round(rows.filter(x => !x._연동).reduce((s, x) => s + (x.진척률 || 0), 0) / r.ownCount * 100) : 0}%</span></div>
-        <div class="v2-rollup-stat total"><span class="k">전체 80건</span><span class="v">${r.totalAvg}%</span></div>
-      </div>
-    </div>`;
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -258,6 +223,14 @@ function v2CycleChanges(range) {
 
 const pctNum = v => parseInt(String(v).replace(/[^0-9-]/g, ''), 10) || 0;
 
+/** 주기 변동 항목(v2CycleChanges의 값)의 진척률 증감. 변동이 없으면 0 */
+function v2RowDelta(entry) {
+  const p = entry && entry.fields['진척률'];
+  return p ? pctNum(p.to) - pctNum(p.from) : 0;
+}
+/** 진척률이 오른 변동인가 */
+function v2RowRose(entry) { return v2RowDelta(entry) > 0; }
+
 /** 주기 변동 요약 — 요약띠와 대시보드 델타가 같은 값을 쓴다 */
 function v2CycleSummary(range) {
   const m = v2CycleChanges(range);
@@ -291,22 +264,52 @@ function v2ChartFont(size) { return { family: "'Pretendard',sans-serif", size: s
 function v2Muted() { return getComputedStyle(document.documentElement).getPropertyValue('--text-3').trim() || '#737373'; }
 function v2Grid() { return getComputedStyle(document.documentElement).getPropertyValue('--grid').trim() || '#F3F4F6'; }
 
-/** 에이전트별 평균 진척률 — 막대 없이 퍼센트만 조밀하게 */
+/** 에이전트별 평균 진척률 — 막대 없이 퍼센트만 조밀하게.
+ *  이번 주기 변동을 두 갈래로 나눠 칠한다.
+ *    up   — 진척률이 오른 에이전트 (초록 강조 + ▲n%p)
+ *    edit — 진척률은 그대로고 담당·목표 등만 바뀐 에이전트 (주황 점)
+ *  기준은 AI 과제 수행 탭의 하이라이트와 같은 currentCycle()이다. */
 function renderV2AgentPct() {
   const wrap = document.getElementById('v2AgentPctGrid');
   if (!wrap) return;
+  const range = currentCycle();
+  const chg = v2CycleChanges(range);
+  const baseBy = {};
+  v2BaselineAt(range).forEach(t => { baseBy[t.no] = t; });
+  const avgOf = arr => arr.length ? Math.round(arr.reduce((s, v) => s + v, 0) / arr.length) : null;
+
+  let upCnt = 0, editCnt = 0;
   wrap.innerHTML = V2_AGENTS.map(a => {
     const ts = v2data.filter(t => t.agentNo === a.no);
     const scored = ts.filter(t => !t.planned);
-    const avg = scored.length ? Math.round(scored.reduce((s, t) => s + t.progress, 0) / scored.length) : null;
+    const avg = avgOf(scored.map(t => t.progress || 0));
+    const baseAvg = avgOf(scored.map(t => (baseBy[t.no] ? baseBy[t.no].progress : t.progress) || 0));
+    const delta = (avg === null || baseAvg === null) ? 0 : avg - baseAvg;
+    const touched = ts.some(t => chg.has(t.no));
+
+    // 상승이 우선이다. 진척률이 그대로여도 다른 항목이 바뀌었으면 변경으로 표시한다.
+    const mark = delta > 0 ? 'up' : touched ? 'edit' : '';
+    if (mark === 'up') upCnt++; else if (mark === 'edit') editCnt++;
+
     const cls = avg === null ? 'none' : avg >= 100 ? 'full' : avg > 0 ? 'on' : 'zero';
     const note = scored.length < ts.length ? ' · 권한대기 ' + (ts.length - scored.length) + '건 제외' : '';
-    return `<div class="v2-pct-cell" title="과제 ${ts.length}건${note}">
+    const tip = `과제 ${ts.length}건${note}` +
+      (delta > 0 ? ` · 이번 주기 ${baseAvg}% → ${avg}%` : delta < 0 ? ` · 이번 주기 ${baseAvg}% → ${avg}%` : touched ? ' · 이번 주기 항목 변경' : '') +
+      ' · 눌러서 과제 열기';
+
+    return `<button type="button" class="v2-pct-cell${mark ? ' is-' + mark : ''}" title="${escapeHtml(tip)}" onclick="goToV2Agent(${a.no})">
       <span class="v2-pct-code">${a.code}</span>
       <span class="v2-pct-name">${escapeHtml(a.name)}</span>
+      ${delta !== 0 ? `<span class="v2-pct-delta ${delta > 0 ? 'up' : 'down'}">${delta > 0 ? '▲' : '▼'}${Math.abs(delta)}%p</span>`
+        : mark === 'edit' ? '<span class="v2-pct-dot" aria-label="이번 주기 변경"></span>' : ''}
       <span class="v2-pct-val ${cls}">${avg === null ? '—' : avg + '%'}</span>
-    </div>`;
+    </button>`;
   }).join('');
+
+  const lg = document.getElementById('v2AgentPctLegend');
+  if (lg) lg.innerHTML = `<span class="lg-cyc">이번 주기 ${range.label}</span>` +
+    `<span class="lg-key up">진척 상승 <b>${upCnt}</b></span>` +
+    `<span class="lg-key edit">항목 변경 <b>${editCnt}</b></span>`;
 }
 
 function renderV2PersonChart() {
@@ -764,29 +767,39 @@ function renderV2FlowAgents(passNos) {
       const avg = scored.length ? Math.round(scored.reduce((s, t) => s + (t.progress || 0), 0) / scored.length) : 0;
       const isPlan = tasks.every(t => t.planned);
       const changed = tasks.some(t => chgMap.has(t.no));
+      // 진척률이 오른 과제를 한 건이라도 안고 있으면 '상승'으로, 그 외 변동은 '변경'으로 칠한다
+      const rose = tasks.some(t => v2RowRose(chgMap.get(t.no)));
+      const mark = rose ? ' up' : changed ? ' chg' : '';
       const isOpen = v2FlowAgentsOpen.has(a.no);
       const dim = !vis.length;
       const active = tasks.filter(t => t.status === '착수').length;
       const people = [...new Set(tasks.flatMap(t => (t.person || '').split(',').map(s => s.trim()).filter(Boolean)))];
       // 확대 카드 — 이름 크게, 운영 플랫폼 배지 상시 표시, 진척바·담당·건수까지 한 카드에.
       html += `<div class="v2-fgroup">
-      <button class="v2-fagent${isOpen ? ' open' : ''}${dim ? ' dim' : ''}${changed ? ' chg' : ''}${isPlan ? ' is-plan' : ''}" data-ano="${a.no}" onclick="v2FlowToggleAgent(${a.no})">
+      <button class="v2-fagent${isOpen ? ' open' : ''}${dim ? ' dim' : ''}${mark}${isPlan ? ' is-plan' : ''}" data-ano="${a.no}" onclick="v2FlowToggleAgent(${a.no})">
         <span class="l1">
           <span class="caret">▶</span>
           <span class="code">${a.code}</span>
           <span class="name">${escapeHtml(a.name)}</span>
-          ${changed ? '<span class="chg-dot" title="이번 주기 변경"></span>' : ''}
+          ${rose ? '<span class="chg-dot up" title="이번 주기 진척률 상승"></span>'
+            : changed ? '<span class="chg-dot" title="이번 주기 항목 변경"></span>' : ''}
         </span>
         <span class="pgline"><span class="pg"><i style="width:${avg}%"></i></span><span class="pgv">${isPlan ? '대기' : avg + '%'}</span></span>
         <span class="l2">${v2PlatBadges(a.code)}<span class="sub">과제 ${tasks.length} · 착수 ${active} · ${escapeHtml(people.join('·') || '미지정')}</span></span>
       </button>
       <div class="v2-fdrawer${isOpen ? ' open' : ''}">
-        ${vis.map(t => `
-        <button class="v2-frow${v2FlowOpen.includes(t.no) ? ' on' : ''}${chgMap.has(t.no) ? ' chg' : ''}" data-tno="${t.no}" onclick="v2FlowToggleTask(${t.no})">
+        ${vis.map(t => {
+          const e = chgMap.get(t.no);
+          const d = v2RowDelta(e);
+          const rm = d > 0 ? ' up' : e ? ' chg' : '';
+          return `
+        <button class="v2-frow${v2FlowOpen.includes(t.no) ? ' on' : ''}${rm}" data-tno="${t.no}" onclick="v2FlowToggleTask(${t.no})">
           <span class="tno">${t.no}</span>
           <span class="tt">${escapeHtml(t.title)}</span>
+          ${d !== 0 ? `<span class="dv ${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'}${Math.abs(d)}</span>` : ''}
           <span class="pv">${t.planned ? '대기' : (t.progress || 0) + '%'}</span>
-        </button>`).join('') || '<div class="v2-frow none">필터 조건에 맞는 과제 없음</div>'}
+        </button>`;
+        }).join('') || '<div class="v2-frow none">필터 조건에 맞는 과제 없음</div>'}
       </div>
       </div>`;
     }
@@ -1148,6 +1161,30 @@ window._v2RenderCycle = function () {
 };
 
 /* ── 탭 이동 ───────────────────────────────────────────────── */
+/** 대시보드 에이전트 셀 → AI 과제 수행 탭 드릴다운.
+ *  해당 에이전트만 펼치고 소속 과제 카드를 전부 열어 우측에 세운다. */
+function goToV2Agent(agentNo) {
+  const nav = document.querySelector('.tab[data-tab="v2-tasks"]');
+  switchTab('v2-tasks', nav);
+  resetV2Filter();                      // 필터가 걸려 있으면 과제가 가려지므로 먼저 푼다
+
+  v2FlowAgentsOpen.clear();
+  v2FlowAgentsOpen.add(agentNo);
+  v2FlowOpen.length = 0;
+  v2data.filter(t => t.agentNo === agentNo).forEach(t => v2FlowOpen.push(t.no));
+  renderV2Tasks();
+
+  // 드로어 전환(0.4s)이 끝나야 실제 행 높이가 잡힌다
+  setTimeout(() => {
+    const el = document.querySelector(`.v2-fagent[data-ano="${agentNo}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      el.classList.add('flash');
+      setTimeout(() => el.classList.remove('flash'), 1600);
+    }
+  }, 460);
+}
+
 function goToV2Task(no) {
   const nav = document.querySelector('.tab[data-tab="v2-tasks"]');
   switchTab('v2-tasks', nav);
@@ -1177,8 +1214,6 @@ window._v2Render = function (tabId) {
 document.addEventListener('DOMContentLoaded', () => {
   populateV2Filters();
   populateV2MapFilter();
-  const src = document.getElementById('v2Source');
-  if (src) src.textContent = `${V2_SOURCE.label} · ${V2_SOURCE.file} (${V2_SOURCE.date})`;
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeV2Modal(); });
 
   // 재편 대시보드가 기본 화면이므로 최초 1회 직접 그린다 (switchTab을 거치지 않음)

@@ -89,15 +89,6 @@
 
 <!-- ══════════ 재편 ① 재편 대시보드 ══════════════════════════ -->
 <div id="tab-v2-dashboard" class="tab-content active">
-  <div class="v2-lead">
-    <div class="v2-lead-text">
-      <h2>기존 18개 에이전트 · 80개 과제를 16개 에이전트 · 25개 과제로 재편했습니다</h2>
-      <p>원과제 80건 중 <b>68건</b>은 상위 AI 과제로 흡수되고, <b>12건</b>은 AI 과제에서 제외했습니다.
-         흡수된 원과제는 자체 값과 상위 과제 진척률 중 높은 쪽을 안분받으므로, 기존 보고 수치를 지키면서 재편 성과만큼 함께 올라갑니다.</p>
-    </div>
-    <span class="v2-source" id="v2Source"></span>
-  </div>
-
   <div class="kpi-row kpi-6">
     <div class="kpi-card"><span class="kpi-ico" aria-hidden="true">◈</span><div class="val" id="v2k-agents">16</div><div class="lbl">AI 에이전트</div><div class="sub-val">기존 18개에서 재편</div></div>
     <div class="kpi-card"><span class="kpi-ico" aria-hidden="true">☰</span><div class="val" id="v2k-tasks">25</div><div class="lbl">AI 과제</div><div class="sub-val" id="v2k-tasks-sub"></div></div>
@@ -108,8 +99,11 @@
   </div>
 
   <section class="chart-card full">
-    <h3>안분 결과 — 원과제 80건의 진척률은 어떻게 움직이는가</h3>
-    <div id="v2RollupWrap"></div>
+    <div class="v2-pct-head">
+      <h3>에이전트별 평균 진척률</h3>
+      <span class="v2-pct-legend" id="v2AgentPctLegend"></span>
+    </div>
+    <div id="v2AgentPctGrid" class="v2-pct-grid"></div>
   </section>
 
   <div class="chart-grid">
@@ -121,7 +115,6 @@
       </div>
       <div class="chart-wrap" style="height:260px"><canvas id="v2ChartTrend"></canvas></div>
     </div>
-    <div class="chart-card full"><h3>에이전트별 평균 진척률</h3><div id="v2AgentPctGrid" class="v2-pct-grid"></div></div>
     <div class="chart-card full"><h3>담당자별 과제 수와 진척률</h3><div class="chart-wrap" style="height:280px"><canvas id="v2ChartPerson"></canvas></div></div>
     <div class="chart-card full"><h3>진척률 원장</h3><div id="v2Ledger" class="v2-ledger"></div></div>
   </div>

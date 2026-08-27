@@ -505,6 +505,7 @@ body.snapshot-mode #weeklyNav .tab.active{background:#FEF3C7;color:#92400E;}
 .v2-card:hover{border-color:var(--border-strong);box-shadow:var(--shadow);}
 .v2-card.planned{background:var(--surface-2);border-style:dashed;}
 .v2-card.flash{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring);}
+.v2-fagent.flash{box-shadow:0 0 0 3px var(--primary-ring);}
 .v2-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;}
 .v2-card-id{display:flex;align-items:center;gap:9px;min-width:0;}
 .v2-no{flex:0 0 auto;width:26px;height:26px;display:grid;place-items:center;border-radius:7px;
@@ -729,7 +730,32 @@ body.snapshot-mode #weeklyNav .tab.active{background:#FEF3C7;color:#92400E;}
 /* ── 재편: 에이전트별 평균 진척률 (퍼센트 목록) ──────────────── */
 .v2-pct-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1px;
   background:var(--border);border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;}
-.v2-pct-cell{background:var(--surface);display:flex;align-items:center;gap:9px;padding:9px 13px;min-width:0;}
+.v2-pct-cell{background:var(--surface);display:flex;align-items:center;gap:9px;padding:9px 13px;min-width:0;
+  width:100%;border:0;font:inherit;text-align:left;cursor:pointer;position:relative;
+  transition:background .15s ease;}
+.v2-pct-cell:hover{background:var(--primary-soft);}
+.v2-pct-cell:focus-visible{outline:2px solid var(--primary);outline-offset:-2px;}
+/* 이번 주기 진척 상승 — 좌측 초록 바 + 옅은 바탕 */
+.v2-pct-cell.is-up{background:var(--lime-soft);box-shadow:inset 3px 0 0 var(--lime);}
+.v2-pct-cell.is-up:hover{background:#E4EFD0;}
+/* 진척률 외 항목만 변경 */
+.v2-pct-cell.is-edit{box-shadow:inset 3px 0 0 var(--warn);}
+.v2-pct-delta{font-size:10.5px;font-weight:700;flex-shrink:0;font-variant-numeric:tabular-nums;
+  border-radius:4px;padding:1px 5px;letter-spacing:.01em;}
+.v2-pct-delta.up{color:var(--lime-deep);background:#E4EFD0;}
+.v2-pct-delta.down{color:var(--danger);background:var(--danger-soft);}
+.v2-pct-dot{width:6px;height:6px;border-radius:50%;background:var(--warn);flex-shrink:0;}
+/* 카드 머리 — 제목과 범례를 한 줄에 */
+.v2-pct-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  margin-bottom:16px;}
+.v2-pct-head h3{margin:0;}
+.v2-pct-legend{display:flex;align-items:center;gap:12px;font-size:11.5px;color:var(--text-3);}
+.v2-pct-legend .lg-key{display:inline-flex;align-items:center;gap:5px;}
+.v2-pct-legend .lg-key b{font-weight:700;font-variant-numeric:tabular-nums;}
+.v2-pct-legend .lg-key::before{content:'';width:9px;height:9px;border-radius:2px;}
+.v2-pct-legend .lg-key.up{color:var(--lime-deep);}
+.v2-pct-legend .lg-key.up::before{background:var(--lime);}
+.v2-pct-legend .lg-key.edit::before{background:var(--warn);}
 .v2-pct-code{font-size:10.5px;font-weight:700;color:var(--primary);background:var(--primary-soft);
   border-radius:5px;padding:2px 6px;flex-shrink:0;letter-spacing:.01em;}
 .v2-pct-name{font-size:12.5px;color:var(--text-2);flex:1;min-width:0;overflow:hidden;
@@ -865,6 +891,10 @@ body.snapshot-mode #weeklyNav .tab.active{background:#FEF3C7;color:#92400E;}
   box-shadow:0 0 0 3px var(--warn-soft);flex-shrink:0;}
 .v2-fagent.chg{background:var(--warn-soft);border-color:var(--warn-border);}
 .v2-fagent.chg.open{border-color:var(--primary);}
+/* 진척률이 오른 에이전트 — 변경(주황)과 구분해 라임으로 */
+.v2-fagent .chg-dot.up{background:var(--lime);box-shadow:0 0 0 3px var(--lime-soft);}
+.v2-fagent.up{background:var(--lime-soft);border-color:var(--lime);}
+.v2-fagent.up.open{border-color:var(--primary);}
 
 /* 과제 드로어 */
 .v2-fdrawer{overflow:hidden;max-height:0;opacity:0;
@@ -882,6 +912,11 @@ body.snapshot-mode #weeklyNav .tab.active{background:#FEF3C7;color:#92400E;}
 .v2-frow.on::before{background:var(--accent);}
 .v2-frow.on{background:var(--accent-soft);}
 .v2-frow.chg{box-shadow:inset 3px 0 0 var(--warn);}
+.v2-frow.up{box-shadow:inset 3px 0 0 var(--lime);}
+.v2-frow .dv{font-size:10px;font-weight:800;flex-shrink:0;font-family:var(--num);
+  border-radius:4px;padding:1px 4px;}
+.v2-frow .dv.up{color:var(--lime-deep);background:#E4EFD0;}
+.v2-frow .dv.down{color:var(--danger);background:var(--danger-soft);}
 .v2-frow .tno{font-size:10.5px;font-weight:800;color:var(--text-3);flex-shrink:0;font-family:var(--num);}
 .v2-frow .tt{font-size:12.5px;font-weight:600;letter-spacing:-.015em;line-height:1.4;flex:1;min-width:0;color:var(--text);}
 .v2-frow .pv{font-size:11.5px;font-weight:800;color:var(--text-2);flex-shrink:0;font-family:var(--num);}

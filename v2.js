@@ -598,6 +598,8 @@ const V2_AGENT_PLAT = {
   'A-09': ['claude', 'python'],
   'A-10': ['aigye'],
   'A-11': ['claude'],
+  'A-12': ['aigye'],
+  'B-02': ['aigye'],
   'B-03': ['aigye', 'gpt'],
   'B-06': ['claude'],
 };

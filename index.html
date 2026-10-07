@@ -6,10 +6,10 @@
 <title>OKH 감사부 AI 활용계획 통합 대시보드</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script type="module" src="firebase.js?v=20260826d"></script>
+<script type="module" src="firebase.js?v=20261007a"></script>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
-<link rel="stylesheet" href="style.css?v=20260826d">
+<link rel="stylesheet" href="style.css?v=20261007a">
 </head>
 <body>
 <div class="app">
@@ -129,7 +129,7 @@
     <select id="v2FilterPerson" onchange="renderV2Tasks()"><option value="">전체</option></select>
     <label for="v2FilterStatus">착수상태</label>
     <select id="v2FilterStatus" onchange="renderV2Tasks()">
-      <option value="">전체</option><option value="착수">착수</option><option value="미착수">미착수</option>
+      <option value="">전체</option><option value="착수">착수</option><option value="미착수">미착수</option><option value="제외">제외</option>
     </select>
     <label for="v2FilterCycle">주기</label>
     <select id="v2FilterCycle" onchange="renderV2Tasks()">
@@ -534,7 +534,7 @@
       </div>
       <div class="form-row">
         <div class="form-group"><label for="v2m_status">착수상태</label>
-          <select id="v2m_status"><option value="착수">착수</option><option value="미착수">미착수</option></select>
+          <select id="v2m_status"><option value="착수">착수</option><option value="미착수">미착수</option><option value="제외">제외(중단)</option></select>
         </div>
         <div class="form-group"><label for="v2m_note">비고 · 제약</label><input type="text" id="v2m_note"></div>
       </div>
@@ -554,10 +554,10 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script src="data.js?v=20260826d"></script>
-<script src="data_v2.js?v=20260826d"></script>
-<script src="app.js?v=20260826d"></script>
-<script src="v2.js?v=20260826d"></script>
-<script src="monthly.js?v=20260826d"></script>
+<script src="data.js?v=20261007a"></script>
+<script src="data_v2.js?v=20261007a"></script>
+<script src="app.js?v=20261007a"></script>
+<script src="v2.js?v=20261007a"></script>
+<script src="monthly.js?v=20261007a"></script>
 </body>
 </html>

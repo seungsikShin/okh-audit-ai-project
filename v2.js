@@ -37,8 +37,14 @@ const V2_PALETTE = ['#04443F','#022E2B','#3FA97F','#67C29B','#00AAA6','#00AAA6',
 function v2Task(no) { return v2data.find(t => t.no === Number(no)); }
 function v2Agent(no) { return V2_AGENTS.find(a => a.no === Number(no)); }
 
-/** 집계 대상 과제 (BSP 권한 대기 2건 제외) */
-function v2Scored() { return v2data.filter(t => !t.planned); }
+/** 집계에서 빼는 과제 — BSP 권한 대기(planned) 또는 착수상태 '제외'(중단 결정).
+ *  기준선(과거 시점) 행도 '지금' 제외 여부로 판단해야 주기 증감이 제외 결정 때문에 튀지 않는다. */
+const V2_EXCLUDED = '제외';
+function v2IsExcluded(t) { const cur = v2Task(t.no); return (cur ? cur.status : t.status) === V2_EXCLUDED; }
+function v2IsOut(t) { return !!t.planned || v2IsExcluded(t); }
+
+/** 집계 대상 과제 (권한 대기·제외 과제 빼고) */
+function v2Scored() { return v2data.filter(t => !v2IsOut(t)); }
 
 /**
  * 안분 결과 — 원과제 no로 조회한다.
@@ -128,7 +134,8 @@ function renderV2Dashboard() {
   set('v2k-started', started.length);
   set('v2k-done', done.length);
   set('v2k-absorbed', Object.keys(V2_LINK).length);
-  set('v2k-tasks-sub', '집계 ' + scored.length + '건 · 권한대기 ' + (v2data.length - scored.length) + '건');
+  const nEx = v2data.filter(t => t.status === V2_EXCLUDED).length;
+  set('v2k-tasks-sub', '집계 ' + scored.length + '건 · 권한대기 ' + (v2data.length - scored.length - nEx) + '건' + (nEx ? ' · 제외 ' + nEx + '건' : ''));
   set('v2k-started-sub', scored.length ? Math.round(started.length / scored.length * 100) + '%' : '');
   set('v2k-done-sub', scored.length ? Math.round(done.length / scored.length * 100) + '%' : '');
   set('v2k-absorbed-sub', '원과제 80건 중');
@@ -147,7 +154,7 @@ function renderV2CycleDeltas() {
   const range = currentCycle();
   const base = v2BaselineAt(range);
   const cur = v2Scored();
-  const baseScored = base.filter(t => !t.planned);
+  const baseScored = base.filter(t => !v2IsOut(t));
 
   const avgOf = arr => arr.length ? Math.round(arr.reduce((s, t) => s + (t.progress || 0), 0) / arr.length) : 0;
   const d = {
@@ -281,7 +288,7 @@ function renderV2AgentPct() {
   let upCnt = 0, editCnt = 0;
   wrap.innerHTML = V2_AGENTS.map(a => {
     const ts = v2data.filter(t => t.agentNo === a.no);
-    const scored = ts.filter(t => !t.planned);
+    const scored = ts.filter(t => !v2IsOut(t));
     const avg = avgOf(scored.map(t => t.progress || 0));
     const baseAvg = avgOf(scored.map(t => (baseBy[t.no] ? baseBy[t.no].progress : t.progress) || 0));
     const delta = (avg === null || baseAvg === null) ? 0 : avg - baseAvg;
@@ -292,7 +299,7 @@ function renderV2AgentPct() {
     if (mark === 'up') upCnt++; else if (mark === 'edit') editCnt++;
 
     const cls = avg === null ? 'none' : avg >= 100 ? 'full' : avg > 0 ? 'on' : 'zero';
-    const note = scored.length < ts.length ? ' · 권한대기 ' + (ts.length - scored.length) + '건 제외' : '';
+    const note = scored.length < ts.length ? ' · 권한대기·제외 ' + (ts.length - scored.length) + '건은 집계에서 뺌' : '';
     const tip = `과제 ${ts.length}건${note}` +
       (delta > 0 ? ` · 이번 주기 ${baseAvg}% → ${avg}%` : delta < 0 ? ` · 이번 주기 ${baseAvg}% → ${avg}%` : touched ? ' · 이번 주기 항목 변경' : '') +
       ' · 눌러서 과제 열기';
@@ -521,7 +528,7 @@ function renderV2Ledger() {
           <span class="ttl">${escapeHtml(t.title)}</span>
           <span class="own">${escapeHtml(t.person || '미지정')}</span>
           <span class="bar"><i style="width:${t.progress}%"></i></span>
-          <span class="pct${t.progress >= 100 ? ' full' : ''}">${t.planned ? '-' : t.progress + '%'}</span>
+          <span class="pct${t.progress >= 100 ? ' full' : ''}">${v2IsOut(t) ? '-' : t.progress + '%'}</span>
         </div>`).join('')}
     </div>`;
   }).join('');
@@ -575,12 +582,13 @@ function renderV2Tasks() {
   setTimeout(v2FlowLayout, 470);   // 드로어 전환(0.4s) 종료 후 실제 행 위치로 재정렬
   v2FlowWiresAnimate();
 
-  const scored = rows.filter(t => !t.planned);
+  const scored = rows.filter(t => !v2IsOut(t));
   const stat = document.getElementById('v2TaskStats');
   if (stat) stat.innerHTML = `
     <div class="stat-chip">표시 <span>${rows.length}</span>건</div>
     <div class="stat-chip">착수 <span>${rows.filter(t => t.status === '착수').length}</span>건</div>
-    <div class="stat-chip">미착수 <span>${rows.filter(t => t.status !== '착수').length}</span>건</div>
+    <div class="stat-chip">미착수 <span>${rows.filter(t => t.status !== '착수' && t.status !== V2_EXCLUDED).length}</span>건</div>
+    ${rows.some(t => t.status === V2_EXCLUDED) ? `<div class="stat-chip">제외 <span>${rows.filter(t => t.status === V2_EXCLUDED).length}</span>건</div>` : ''}
     <div class="stat-chip">평균 진척률 <span>${scored.length ? Math.round(scored.reduce((s, t) => s + t.progress, 0) / scored.length) : 0}</span>%</div>
     <div class="stat-chip">흡수 원과제 <span>${rows.reduce((s, t) => s + t.origins.length, 0)}</span>건</div>`;
 }
@@ -596,7 +604,7 @@ const V2_AGENT_PLAT = {
   'A-07': ['aigye'],
   'A-08': ['claude'],
   'A-09': ['claude', 'python'],
-  'A-10': ['aigye'],
+  'A-10': ['python', 'aigye'],
   'A-11': ['claude'],
   'A-12': ['aigye'],
   'B-02': ['aigye'],
@@ -649,7 +657,7 @@ function v2TaskCard(t, closable) {
     return `<button class="v2-origin" onclick="goToTask(${o})" title="${escapeHtml(l ? l.task.replace(/\s+/g, ' ').slice(0, 90) : '')}">#${o}</button>`;
   }).join('');
 
-  return `<article class="v2-card${t.planned ? ' planned' : ''}" data-dno="${t.no}">
+  return `<article class="v2-card${v2IsOut(t) ? ' planned' : ''}" data-dno="${t.no}">
     <header class="v2-card-head">
       <div class="v2-card-id">
         <span class="v2-no">${t.no}</span>
@@ -657,7 +665,7 @@ function v2TaskCard(t, closable) {
         <span class="v2-plat">${ag ? v2PlatBadges(ag.code) : ''}</span>
       </div>
       <div class="v2-card-actions">
-        <span class="v2-status ${t.status === '착수' ? 'on' : 'off'}">${t.status || '미착수'}</span>
+        <span class="v2-status ${t.status === '착수' ? 'on' : t.status === V2_EXCLUDED ? 'ex' : 'off'}">${t.status || '미착수'}</span>
         <button class="btn btn-outline btn-sm" onclick="openV2Edit(${t.no})">수정</button>
         ${closable ? `<button class="btn btn-outline btn-sm v2-flow-x" onclick="v2FlowToggleTask(${t.no})" title="카드 닫기">×</button>` : ''}
       </div>
@@ -667,7 +675,7 @@ function v2TaskCard(t, closable) {
 
     <div class="v2-progress">
       <div class="v2-progress-track"><i style="width:${pct}%" class="${pct >= 100 ? 'full' : ''}"></i></div>
-      <span class="v2-progress-val${pct >= 100 ? ' full' : ''}">${t.planned ? '권한 대기' : pct + '%'}</span>
+      <span class="v2-progress-val${pct >= 100 ? ' full' : ''}">${t.planned ? '권한 대기' : v2IsExcluded(t) ? '제외' : pct + '%'}</span>
     </div>
 
     <dl class="v2-spec">
@@ -765,9 +773,9 @@ function renderV2FlowAgents(passNos) {
     for (const a of list) {
       const tasks = v2data.filter(t => t.agentNo === a.no);
       const vis = tasks.filter(t => passNos.has(t.no));
-      const scored = tasks.filter(t => !t.planned);
+      const scored = tasks.filter(t => !v2IsOut(t));
       const avg = scored.length ? Math.round(scored.reduce((s, t) => s + (t.progress || 0), 0) / scored.length) : 0;
-      const isPlan = tasks.every(t => t.planned);
+      const isPlan = tasks.every(t => v2IsOut(t));
       const changed = tasks.some(t => chgMap.has(t.no));
       // 진척률이 오른 과제를 한 건이라도 안고 있으면 '상승'으로, 그 외 변동은 '변경'으로 칠한다
       const rose = tasks.some(t => v2RowRose(chgMap.get(t.no)));
@@ -799,7 +807,7 @@ function renderV2FlowAgents(passNos) {
           <span class="tno">${t.no}</span>
           <span class="tt">${escapeHtml(t.title)}</span>
           ${d !== 0 ? `<span class="dv ${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'}${Math.abs(d)}</span>` : ''}
-          <span class="pv">${t.planned ? '대기' : (t.progress || 0) + '%'}</span>
+          <span class="pv">${t.planned ? '대기' : v2IsExcluded(t) ? '제외' : (t.progress || 0) + '%'}</span>
         </button>`;
         }).join('') || '<div class="v2-frow none">필터 조건에 맞는 과제 없음</div>'}
       </div>
@@ -894,7 +902,7 @@ function renderV2Agents() {
   if (!wrap) return;
   wrap.innerHTML = V2_AGENTS.map(a => {
     const ts = v2data.filter(t => t.agentNo === a.no);
-    const scored = ts.filter(t => !t.planned);
+    const scored = ts.filter(t => !v2IsOut(t));
     const avg = scored.length ? Math.round(scored.reduce((s, t) => s + t.progress, 0) / scored.length) : 0;
     const absorbed = ts.reduce((s, t) => s + t.origins.length, 0);
     const people = [...new Set(ts.flatMap(t => (t.person || '').split(',').map(s => s.trim()).filter(Boolean)))];
@@ -913,7 +921,7 @@ function renderV2Agents() {
         ${ts.map(t => `<li onclick="openV2Edit(${t.no})" role="button" tabindex="0" onkeydown="if(event.key==='Enter')openV2Edit(${t.no})">
           <span class="n">${t.no}</span>
           <span class="t">${escapeHtml(t.title)}</span>
-          <span class="p${t.progress >= 100 ? ' full' : ''}">${t.planned ? '-' : t.progress + '%'}</span>
+          <span class="p${t.progress >= 100 ? ' full' : ''}">${v2IsOut(t) ? '-' : t.progress + '%'}</span>
         </li>`).join('')}
       </ul>
       <footer class="v2-agent-foot">${people.length ? escapeHtml(people.join(', ')) : '담당자 미지정'}</footer>
